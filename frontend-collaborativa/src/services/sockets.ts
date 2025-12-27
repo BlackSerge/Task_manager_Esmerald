@@ -8,7 +8,6 @@ class SocketService {
   private subscribers: MessageHandler[] = [];
 
   public connect(url: string): void {
-    // Si ya existe una conexión abierta o conectando, no duplicamos
     if (this.socket?.readyState === WebSocket.OPEN || this.socket?.readyState === WebSocket.CONNECTING) {
       return;
     }
@@ -22,7 +21,6 @@ class SocketService {
     this.socket.onmessage = (event: MessageEvent) => {
       try {
         const data: unknown = JSON.parse(event.data);
-        // Notificamos a todos los suscriptores (en este caso, al handleSocketNotification)
         this.subscribers.forEach((callback) => callback(data));
       } catch (error) {
         console.error("❌ [SocketService]: Error parseando mensaje JSON:", error);
@@ -39,10 +37,21 @@ class SocketService {
     };
   }
 
+  /**
+   * Envía datos al servidor. 
+   * Usamos Record<string, unknown> para evitar el uso de 'any'.
+   */
+  public send(data: Record<string, unknown>): void {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
+    } else {
+      console.error("❌ [SocketService]: No se pudo enviar mensaje, socket cerrado.");
+    }
+  }
+
   /** Permite que otros archivos escuchen los mensajes que llegan */
   public subscribe(callback: MessageHandler): () => void {
     this.subscribers.push(callback);
-    // Retornamos una función de limpieza para remover el suscriptor
     return () => {
       this.subscribers = this.subscribers.filter((s) => s !== callback);
     };
@@ -58,5 +67,4 @@ class SocketService {
   }
 }
 
-// Exportamos una única instancia (Singleton)
 export const socketService = new SocketService();

@@ -3,6 +3,8 @@ import React from "react";
 import { Column, Card } from "../types";
 import { useDeleteList, useDeleteCard } from "../hooks";
 import { CreateCardForm } from "./CreateCardForm";
+import { EditableText } from "./EditableText";
+import { DeleteIcon, CloseIcon } from "@/shared/components/icons";
 
 interface Props {
   column: Column;
@@ -13,53 +15,83 @@ export const ColumnList: React.FC<Props> = ({ column, boardId }) => {
   const deleteListMutation = useDeleteList();
   const deleteCardMutation = useDeleteCard();
 
-  const handleDelete = () => {
-    if (window.confirm(`¿Eliminar la lista "${column.title}"?`)) {
+  const hasCards = column.cards && column.cards.length > 0;
+
+  const handleDeleteColumn = () => {
+    if (window.confirm(`¿Estás seguro de eliminar la lista "${column.title}"?`)) {
       deleteListMutation.mutate({ boardId, listId: String(column.id) });
     }
   };
 
   return (
-    <div className="w-80 bg-white/60 backdrop-blur-md rounded-[2rem] p-4 flex-shrink-0 flex flex-col max-h-full border border-emerald-100 shadow-xl shadow-emerald-900/5">
-      {/* Header de la Columna */}
-      <div className="flex justify-between items-center mb-4 px-2 group/list">
-        <h3 className="font-black text-emerald-900 text-sm uppercase tracking-wider">
-          {column.title}
-        </h3>
+    <div className="w-80 bg-white/60 backdrop-blur-md rounded-[2.5rem] p-5 flex-shrink-0 flex flex-col max-h-[88vh] border border-emerald-100 shadow-2xl shadow-emerald-900/5">
+      
+      {/* Header */}
+      <div className="flex justify-between items-start mb-5 px-2 group/list">
+        <div className="flex-1 min-w-0"> {/* min-w-0 ayuda a que el texto largo no rompa el layout */}
+          <h3 className="font-black text-emerald-900 text-sm uppercase tracking-widest flex items-center gap-2">
+            <EditableText 
+              initialValue={column.title}
+              type="column.update"
+              idKey="column_id"
+              idValue={column.id}
+              className="hover:text-emerald-600 transition-colors truncate"
+            />
+            {hasCards && (
+              <span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0">
+                {column.cards.length}
+              </span>
+            )}
+          </h3>
+        </div>
+
         <button 
-          onClick={handleDelete}
-          className="opacity-0 group-hover/list:opacity-100 text-emerald-300 hover:text-red-500 transition-all p-1.5 hover:bg-red-50 rounded-xl"
+          onClick={handleDeleteColumn}
+          className="opacity-0 group-hover/list:opacity-100 text-emerald-300 hover:text-red-500 transition-all p-2 hover:bg-red-50 rounded-2xl ml-2 flex-shrink-0"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
+          <DeleteIcon className="h-4 w-4" />
         </button>
       </div>
       
-      {/* Contenedor de Tarjetas */}
-      <div className="flex-1 overflow-y-auto space-y-3 mb-4 px-1 custom-scrollbar">
-        {column.cards.map((card: Card) => (
-          <div 
-            key={card.id} 
-            className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50 hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer group relative"
-          >
-            <p className="text-sm text-emerald-950 font-medium leading-relaxed pr-6">{card.title}</p>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteCardMutation.mutate({ listId: String(column.id), cardId: String(card.id) });
-              }}
-              className="absolute top-4 right-3 opacity-0 group-hover:opacity-100 text-emerald-200 hover:text-red-400 transition-all"
+      {/* Contenedor de Tarjetas: 
+          - Añadimos pt-2 para que el botón negativo de la primera tarjeta no se corte.
+          - overflow-x-hidden para eliminar la barra horizontal que mencionas.
+      */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-2 custom-scrollbar scroll-smooth">
+        <div className="space-y-4 mb-4">
+          {column.cards?.map((card: Card) => (
+            <div 
+              key={card.id} 
+              className="bg-white p-4 rounded-[1.5rem] shadow-sm border border-emerald-50 hover:border-emerald-300 hover:shadow-lg transition-all group relative"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        ))}
-      </div>
+              <EditableText 
+                initialValue={card.title}
+                type="card.update"
+                idKey="card_id"
+                idValue={card.id}
+                className="text-sm text-emerald-950 font-semibold leading-relaxed block"
+              />
+              
+              {/* Botón de eliminar: 
+                  Cambiamos de -top-2 a top-1 para evitar que se salga del contenedor padre y sea recortado por el overflow.
+              */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteCardMutation.mutate({ listId: String(column.id), cardId: String(card.id) });
+                }}
+                className="absolute top-1 -right-1 opacity-0 group-hover:opacity-100 bg-red-500 text-white p-1 rounded-full shadow-lg hover:bg-red-600 transition-all z-10 scale-90 hover:scale-110"
+              >
+                <CloseIcon className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
 
-      <CreateCardForm listId={String(column.id)} />
+        <div className="pb-2"> {/* Espaciado inferior para el formulario */}
+          <CreateCardForm columnId={column.id} showPlaceholder={!hasCards} />
+        </div>
+      </div>
     </div>
   );
 };

@@ -36,12 +36,30 @@ export interface CreateCardDto {
   listId: string | number;
   title: string;
   description?: string;
+
 }
 
 export interface DeleteColumnParams {
   boardId: string | number;
   columnId: string | number;
 }
+
+export interface SocketMessage {
+  type: string;
+  payload: Record<string, unknown>;
+}
+
+
+
+export interface EditableTextProps {
+  initialValue: string;
+  type: "card.update" | "column.update";
+  idKey: "card_id" | "column_id";
+  idValue: string | number;
+  className?: string;
+}
+
+
 
 export interface BoardsActions {
   // Sincronización inicial (carga masiva)
@@ -75,5 +93,8 @@ export type BoardsStore = {
   // Added to match store implementation
   isLoading: boolean;
   error: string | null;
+
+
+
+
 };
-// ...existing code...

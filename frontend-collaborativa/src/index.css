@@ -4,3 +4,17 @@
 @keyframes shimmer {
   100% { transform: translateX(100%); }
 }
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1fae5; /* emerald-100 */
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a7f3d0; /* emerald-200 */
+}

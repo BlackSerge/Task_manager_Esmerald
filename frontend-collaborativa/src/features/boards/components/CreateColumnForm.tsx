@@ -1,59 +1,72 @@
 // src/features/boards/components/CreateColumnForm.tsx
 import React, { useState } from "react";
-import { useCreateList } from "../hooks";
+import { socketService } from "@/services/sockets";
 
-export const CreateColumnForm: React.FC<{ boardId: string }> = ({ boardId }) => {
+interface Props {
+  boardId: string;
+}
+
+export const CreateColumnForm: React.FC<Props> = ({ boardId }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState("");
-  const { mutate, isPending } = useCreateList();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    mutate({ boardId, title }, {
-      onSuccess: () => {
-        setTitle("");
-        setIsEditing(false);
-      }
+
+    // Enviamos la acción al backend vía Socket
+    socketService.send({
+      type: "column.create",
+      payload: {
+        title: title.trim(),
+        board_id: boardId, // El backend ya lo tiene por la URL, pero lo enviamos por claridad
+      },
     });
+
+    setTitle("");
+    setIsEditing(false);
   };
 
   if (!isEditing) {
     return (
-      <button 
+      <button
         onClick={() => setIsEditing(true)}
-        className="w-80 shrink-0 p-4 bg-emerald-600/10 border-2 border-dashed border-emerald-200 rounded-[2rem] text-emerald-700 font-black flex items-center justify-center gap-2 hover:bg-emerald-600/20 transition-all group"
+        className="w-80 shrink-0 bg-emerald-600/10 hover:bg-emerald-600/20 border-2 border-dashed border-emerald-600/30 rounded-2xl p-4 flex items-center justify-center gap-2 text-emerald-700 font-bold transition-all group"
       >
-        <span className="text-xl group-hover:scale-125 transition-transform">+</span>
-        Añadir otra lista
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+        </svg>
+        Añadir otra columna
       </button>
     );
   }
 
   return (
-    <div className="w-80 shrink-0 bg-white p-4 rounded-[2rem] border border-emerald-100 shadow-xl">
-      <form onSubmit={handleSubmit} className="space-y-3">
+    <div className="w-80 shrink-0 bg-white border border-emerald-100 rounded-2xl p-4 shadow-sm animate-in fade-in zoom-in duration-200">
+      <form onSubmit={handleSubmit}>
         <input
           autoFocus
-          placeholder="Nombre de la lista..."
+          type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full p-3 bg-emerald-50/50 border border-emerald-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-emerald-900"
+          placeholder="Nombre de la lista..."
+          className="w-full px-3 py-2 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-500 text-emerald-950 font-medium placeholder:text-emerald-300"
         />
-        <div className="flex gap-2">
-          <button 
-            type="submit" 
-            disabled={isPending}
-            className="flex-1 bg-emerald-600 text-white p-2 rounded-xl font-black text-sm hover:bg-emerald-700 transition-colors"
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors shadow-sm"
           >
-            {isPending ? "..." : "Añadir lista"}
+            Añadir lista
           </button>
-          <button 
+          <button
             type="button"
             onClick={() => setIsEditing(false)}
-            className="p-2 text-emerald-400 hover:text-emerald-600 font-bold"
+            className="p-2 text-emerald-400 hover:text-emerald-600 transition-colors"
           >
-            ✕
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
       </form>
