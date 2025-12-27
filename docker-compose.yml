@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:15
+    container_name: collaborative_db
+    environment:
+      POSTGRES_DB: collaborative_db
+      POSTGRES_USER: Sergio
+      POSTGRES_PASSWORD: SxD13052023
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    container_name: collaborative_redis
+    ports:
+      - "6379:6379"
+
+  web:
+    build:
+      context: .
+    container_name: collaborative_backend
+    # Usamos daphne para que los WebSockets funcionen de forma nativa
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
