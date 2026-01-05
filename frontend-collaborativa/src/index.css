@@ -5,16 +5,65 @@
   100% { transform: translateX(100%); }
 }
 
+/* src/index.css */
+
+/* Estilo para la clase custom-scrollbar que pusimos en el ChatPanel */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 5px; /* Ultra fina */
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  background: transparent; 
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #d1fae5; /* emerald-100 */
-  border-radius: 10px;
+  background: #10b981; /* Esmeralda 500 */
+  border-radius: 20px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a7f3d0; /* emerald-200 */
+  background: #059669; /* Esmeralda 600 al pasar el mouse */
+}
+
+/* Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar:horizontal {
+  height: 6px; /* Altura del scroll horizontal del tablero */
+}
+
+/* Evita que el body haga scroll extraño mientras arrastras */
+body:has([data-rbd-drag-handle-context-id]) {
+  overflow: hidden !important;
+  user-select: none;
+}
+
+/* Forzamos que la tarjeta en el portal no herede opacidades de la lista */
+#draggable-portal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none; /* El portal no debe bloquear clicks */
+}
+/* 2. Suavizamos el movimiento de las tarjetas que NO se están moviendo */
+[data-rbd-draggable-context-id] {
+  transition: transform 0.25s cubic-bezier(0.2, 1, 0.1, 1) !important;
+}
+
+/* 3. El Placeholder (Hueco) ahora es una silueta fantasma elegante */
+.custom-placeholder-style {
+  background: rgba(16, 185, 129, 0.04) !important;
+  border: 2px dashed rgba(16, 185, 129, 0.15) !important;
+  border-radius: 2.2rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Suaviza la aparición del hueco cuando entras en una columna */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 185, 129, 0.2) transparent;
 }

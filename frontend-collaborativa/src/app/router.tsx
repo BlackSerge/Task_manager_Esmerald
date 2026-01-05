@@ -1,41 +1,50 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import { HomePage } from "@/features/home/pages/HomePage";
-import {LoginPage} from "@/features/auth/pages/LoginPage"; 
-import {RegisterPage} from "@/features/auth/pages/RegisterPage";
-import {BoardsPage} from "@/features/boards/pages/BoardsPage";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { HomePage } from "@/features/landing/pages/HomePage";
+import { LoginPage } from "@/features/auth/pages/LoginPage"; 
+import { RegisterPage } from "@/features/auth/pages/RegisterPage";
+import { BoardsPage } from "@/features/boards/pages/BoardsPage";
 import { BoardDetailPage } from "@/features/boards/pages/BoardDetailPage";
-import { ProtectedRoute } from "@/features/boards/components/ProtectedRoute";
+import { PublicRoute } from "@/shared/guards/PublicRoute";
+import { MainLayout } from "@/shared/layout/MainLayout";
+import { ProtectedRoute } from "@/shared/guards/ProtectedRoute";
 
+/**
+ * appRouter: Definición centralizada de rutas.
+ * Se utiliza una estructura jerárquica para facilitar la aplicación de Guards.
+ */
 export const appRouter = createBrowserRouter([
-  // RUTAS PÚBLICAS
+  // --- RUTAS DE AUTENTICACIÓN (Públicas) ---
+  { 
+    element: <PublicRoute />,
+    children: [
+      { path: "login", element: <LoginPage /> },
+      { path: "register", element: <RegisterPage /> },
+    ]
+  },
+
+  // --- RUTA LANDING ---
   { 
     path: "/", 
     element: <HomePage /> 
   },
-  { 
-    path: "/login", 
-    element: <LoginPage /> 
-  },
-  { 
-    path: "/register", 
-    element: <RegisterPage /> 
-  },
 
-  // RUTAS PRIVADAS (Protegidas por un componente de guardia)
+  // --- RUTAS DE APLICACIÓN (Protegidas) ---
   {
-    element: (
-      <ProtectedRoute>
-        <MainLayout />
-      </ProtectedRoute>
-    ),
+    element: <ProtectedRoute />,
     children: [
-      { path: "/boards", element: <BoardsPage /> },
-      { path: "/boards/:boardId", element: <BoardDetailPage /> },
+      {
+        element: <MainLayout />,
+        children: [
+          // Usamos paths absolutos para evitar ambigüedad durante la navegación reactiva
+          { path: "/boards", element: <BoardsPage /> },
+          { path: "/boards/:boardId", element: <BoardDetailPage /> },
+        ],
+      },
     ],
   },
 
-  // REDIRECCIÓN PARA RUTAS NO EXISTENTES
+  // --- UTILIDADES Y FALLBACK ---
+  { path: "/dashboard", element: <Navigate to="/boards" replace /> },
   { 
     path: "*", 
     element: <Navigate to="/" replace /> 

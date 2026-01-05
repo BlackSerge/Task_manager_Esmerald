@@ -2,7 +2,7 @@ import pytest
 from django.core.exceptions import PermissionDenied
 from model_bakery import baker
 
-from boards.services import create_column, move_card
+from backend.boards.services.content_service import create_column, move_card
 from boards.models import Board, Column, Card
 
 

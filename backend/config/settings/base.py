@@ -141,24 +141,23 @@ MEDIA_ROOT = BASE_DIR / "media"
 # -----------------------------
 # CORS
 # -----------------------------
-# 1. Desactiva el permitir a todos
-# settings.py
 
-# 1. ESTO DEBE SER FALSE
 CORS_ALLOW_ALL_ORIGINS = False
 
 # 2. ESPECIFICA TU FRONTEND
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://localhost:5174",
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
     "http://localhost:4200",
     "http://127.0.0.1:4200",
 ]
 
-# 3. ESTO ES VITAL PARA AXIOS CON CREDENTIALS
+
 CORS_ALLOW_CREDENTIALS = True
 
-# 4. ASEGÚRATE DE TENER LOS HEADERS NECESARIOS
+
 CORS_ALLOW_HEADERS = [
     "accept",
     "authorization",
@@ -186,3 +185,31 @@ LOGGING = {
         "level": "INFO",
     },
 }
+
+# Validators
+
+# settings.py
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8},
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+    # --- VALIDACIÓN ROBUSTA PERSONALIZADA ---
+    {
+        'NAME': 'django.core.validators.RegexValidator',
+        'OPTIONS': {
+            'regex': r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
+            'message': 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.',
+        }
+    },
+]

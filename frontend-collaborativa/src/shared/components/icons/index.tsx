@@ -1,5 +1,5 @@
 // src/shared/components/icons/index.tsx
-import React from "react";
+
 
 interface IconProps {
   className?: string;

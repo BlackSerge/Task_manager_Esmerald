@@ -1,136 +1,104 @@
-# boards/consumers.py
-import traceback
+import logging
+from typing import Dict, Any, Optional, cast
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
-from .models import Board, Column, Card
-from .services import move_card
+from django.contrib.auth.models import AbstractBaseUser
+
+from .services import content_service
+from . import selectors
+from .serializers.board_serializers import BoardDetailSerializer
+
+logger = logging.getLogger(__name__)
 
 class BoardConsumer(AsyncJsonWebsocketConsumer):
-    async def connect(self):
-        """Maneja la conexión inicial del WebSocket"""
-        # 1. Validación de usuario (Middleware de Channels debe estar configurado)
-        if self.scope["user"].is_anonymous:
-            print("❌ [WS]: Intento de conexión anónima rechazado.")
+    # Tipado de atributos de clase
+    board_id: int
+    group_name: str
+    user: AbstractBaseUser
+
+    async def connect(self) -> None:
+        """Establece conexión y valida al usuario."""
+        self.user = self.scope["user"]
+        
+        if self.user.is_anonymous:
             await self.close()
             return
 
-        self.board_id = self.scope["url_route"]["kwargs"]["board_id"]
+        # Obtenemos el ID de la ruta
+        route_kwargs: Dict[str, str] = self.scope["url_route"]["kwargs"]
+        self.board_id = int(route_kwargs["board_id"])
         self.group_name = f"board_{self.board_id}"
 
-        # 2. Unión al grupo del tablero para broadcasting
+        # Unirse al grupo de Redis
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
-        print(f"✅ [WS]: Usuario {self.scope['user']} conectado al tablero {self.board_id}")
+        
+        # Snapshot inicial
+        await self.send_board_state()
 
-        # 3. Envío del estado inicial del tablero al conectar
-        board_data = await self.get_board_data()
-        if board_data:
-            await self.send_json(board_data)
-        else:
-            await self.send_json({"type": "BOARD_NOT_FOUND", "id": self.board_id})
-
-    async def disconnect(self, close_code):
-        """Maneja la desconexión del cliente"""
+    async def disconnect(self: int) -> None:
+        """Limpieza de canales al desconectar."""
         if hasattr(self, 'group_name'):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
-            print(f"🔌 [WS]: Desconectado del tablero {self.board_id} (Código: {close_code})")
 
-    async def receive_json(self, content):
-        """Punto de entrada para todos los mensajes enviados desde el Frontend"""
-        msg_type = content.get("type")
-        payload = content.get("payload") or {}
+    async def receive_json(self, content: Dict[str, Any]) -> None:
+        """
+        Maneja acciones directas desde el socket (Zustand -> WebSocket).
+        """
+        msg_type: Optional[str] = content.get("type")
+        payload: Dict[str, Any] = content.get("payload") or {}
 
         try:
-            # Enrutamiento de acciones
-            if msg_type == "CREATE_BOARD":
-                await self._create_board(payload.get("title", "Nuevo Tablero"))
-            
-            elif msg_type == "column.create":
-                await self._create_column(payload.get("title"))
-            
-            elif msg_type == "column.update":
-                await self._update_column(payload)
+            if msg_type == "card.move":
+                # Delegamos al service que ya tiene la lógica de validación y notificación
+                await database_sync_to_async(content_service.move_card)(
+                    card_id=int(payload["card_id"]),
+                    new_column_id=int(payload["new_column_id"]),
+                    new_order=float(payload["new_order"]),
+                    user=self.user
+                )
             
             elif msg_type == "card.create":
-                await self._create_card(payload.get("column_id"), payload.get("title"))
-            
-            elif msg_type == "card.update":
-                await self._update_card(payload)
-            
-            elif msg_type == "card.move":
-                await self._move_card(payload)
-
-            # Tras realizar cualquier cambio, notificamos a todos los miembros del grupo
-            await self.broadcast_board_state()
+                await database_sync_to_async(content_service.create_card)(
+                    column_id=int(payload["column_id"]),
+                    title=str(payload["title"]),
+                    user=self.user
+                )
 
         except Exception as e:
-            print(f"❌ [WS ERROR] en receive_json: {str(e)}")
-            await self.send_json({"type": "ERROR", "message": "No se pudo procesar la acción"})
+            logger.error(f"WebSocket Error [{msg_type}]: {str(e)}")
+            await self.send_json({"type": "ERROR", "message": "Error al procesar la acción"})
 
-    # --- Sincronización Masiva (Broadcasting) ---
+    # --- Handlers de Eventos (Broadcast recibidos de Redis) ---
 
-    async def broadcast_board_state(self):
-        """Obtiene la data actualizada de la DB y la envía a todo el grupo"""
-        board_data = await self.get_board_data()
+    async def card_moved_event(self, event: Dict[str, Any]) -> None:
+        """Reenvía el movimiento de tarjeta a todos los clientes conectados."""
+        await self.send_json({
+            "type": "CARD_MOVED",
+            "payload": event["payload"]
+        })
+
+    async def board_broadcast_state(self: Dict[str, Any]) -> None:
+        """Forzar actualización completa del tablero."""
+        await self.send_board_state()
+
+    async def send_board_state(self) -> None:
+        """Envía el estado actual serializado al cliente."""
+        board_data = await self.get_board_snapshot()
         if board_data:
-            await self.channel_layer.group_send(
-                self.group_name,
-                {
-                    "type": "board.update",
-                    "data": board_data
-                }
-            )
-
-    async def board_update(self, event):
-        """Handler que recibe el mensaje del group_send y lo envía al socket físico"""
-        await self.send_json(event["data"])
-
-    # --- Operaciones de Base de Datos (Async) ---
+            await self.send_json({
+                "type": "BOARD.UPDATED", 
+                "payload": board_data
+            })
 
     @database_sync_to_async
-    def get_board_data(self):
-        """Serializa el tablero completo optimizando las consultas"""
-        try:
-            from .serializers import BoardDetailSerializer
-            board = Board.objects.prefetch_related('columns__cards').get(id=self.board_id)
-            return BoardDetailSerializer(board).data
-        except Exception as e:
-            print(f"❌ [WS ERROR] Serialización: {str(e)}")
-            traceback.print_exc()
+    def get_board_snapshot(self) -> Optional[Dict[str, Any]]:
+        """
+        Usa el Selector que ya optimizamos con prefetch_related.
+        """
+        # Usamos el selector que ya valida permisos y optimiza DB
+        board = selectors.board_detail_get(user=self.user, board_id=self.board_id)
+        if not board:
             return None
-
-    @database_sync_to_async
-    def _create_board(self, title):
-        return Board.objects.get_or_create(
-            id=self.board_id, 
-            defaults={'title': title, 'owner': self.scope["user"]}
-        )
-
-    @database_sync_to_async
-    def _create_column(self, title):
-        order = Column.objects.filter(board_id=self.board_id).count()
-        return Column.objects.create(board_id=self.board_id, title=title, order=order)
-
-    @database_sync_to_async
-    def _update_column(self, data):
-        return Column.objects.filter(id=data["column_id"]).update(title=data["title"])
-
-    @database_sync_to_async
-    def _create_card(self, column_id, title):
-        order = Card.objects.filter(column_id=column_id).count()
-        return Card.objects.create(column_id=column_id, title=title, order=order)
-
-    @database_sync_to_async
-    def _update_card(self, data):
-        """Actualiza campos específicos de la tarjeta (principalmente el título)"""
-        return Card.objects.filter(id=data["card_id"]).update(title=data["title"])
-
-    @database_sync_to_async
-    def _move_card(self, data):
-        """Invoca el servicio de lógica de negocio para mover tarjetas"""
-        return move_card(
-            card_id=data["card_id"],
-            new_column_id=data["new_column_id"],
-            new_order=data["new_order"],
-            user=self.scope["user"]
-        )
+            
+        return cast(Dict[str, Any], BoardDetailSerializer(board).data)

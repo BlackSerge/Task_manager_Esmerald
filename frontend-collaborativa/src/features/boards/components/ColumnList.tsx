@@ -1,97 +1,121 @@
-// src/features/boards/components/ColumnList.tsx
-import React from "react";
-import { Column, Card } from "../types";
-import { useDeleteList, useDeleteCard } from "../hooks";
-import { CreateCardForm } from "./CreateCardForm";
-import { EditableText } from "./EditableText";
-import { DeleteIcon, CloseIcon } from "@/shared/components/icons";
+import React, { useState, useMemo } from "react";
+import { Plus, Edit2, Trash2, Loader2, Lock } from "lucide-react";
+
+import { Column, Board } from "../types/board.types";
+import { EditableEntity } from "./EditableEntity";
+import { TaskModal } from "./BoardDetail/TaskModal";
+import { DropdownMenu } from "@/shared/components/ui/DropdownMenu";
+import { DroppableWrapper } from "@/shared/components/dnd/DroppableWrapper";
+import { CardItem } from "./CardItem"; 
+import { useColumnActions, CreateCardDTO } from "../hooks/useColumnActions";
+import { getColumnStatusConfig } from "@/shared/utils/column.utils";
+import { usePermissions } from "../hooks/usePermissions";
 
 interface Props {
   column: Column;
-  boardId: string;
+  board: Board;
+  index: number;
+  totalColumns: number;
 }
 
-export const ColumnList: React.FC<Props> = ({ column, boardId }) => {
-  const deleteListMutation = useDeleteList();
-  const deleteCardMutation = useDeleteCard();
+export const ColumnList: React.FC<Props> = ({ column, board, index, totalColumns }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
 
-  const hasCards = column.cards && column.cards.length > 0;
+  // 1. Permisos estrictos: Solo lo que esta columna necesita saber
+  const { canEdit, canDelete, role, isLoading: isLoadingPermissions } = usePermissions(board);
+  const { isCreatingCard, ...actions } = useColumnActions(board.id.toString(), column.id);
+  const config = getColumnStatusConfig(column.title, index, totalColumns);
 
-  const handleDeleteColumn = () => {
-    if (window.confirm(`¿Estás seguro de eliminar la lista "${column.title}"?`)) {
-      deleteListMutation.mutate({ boardId, listId: String(column.id) });
-    }
-  };
+  const menuOptions = useMemo(() => [
+    ...(canEdit ? [{ 
+      label: "Editar nombre", 
+      icon: <Edit2 size={14} />, 
+      onClick: () => setIsEditingTitle(true) 
+    }] : []),
+    ...(canDelete ? [{ 
+      label: "Eliminar lista", 
+      icon: <Trash2 size={14} />, 
+      variant: "danger" as const, 
+      onClick: actions.deleteColumn 
+    }] : [])
+  ], [canEdit, canDelete, actions.deleteColumn]);
 
   return (
-    <div className="w-80 bg-white/60 backdrop-blur-md rounded-[2.5rem] p-5 flex-shrink-0 flex flex-col max-h-[88vh] border border-emerald-100 shadow-2xl shadow-emerald-900/5">
+    <div className={`w-80 rounded-[2.5rem] p-5 flex-shrink-0 flex flex-col max-h-[88vh] border transition-all duration-500 ${config.bg} backdrop-blur-xl shadow-xl`}>
       
-      {/* Header */}
-      <div className="flex justify-between items-start mb-5 px-2 group/list">
-        <div className="flex-1 min-w-0"> {/* min-w-0 ayuda a que el texto largo no rompa el layout */}
-          <h3 className="font-black text-emerald-900 text-sm uppercase tracking-widest flex items-center gap-2">
-            <EditableText 
-              initialValue={column.title}
-              type="column.update"
-              idKey="column_id"
-              idValue={column.id}
-              className="hover:text-emerald-600 transition-colors truncate"
-            />
-            {hasCards && (
-              <span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0">
-                {column.cards.length}
-              </span>
-            )}
-          </h3>
+      {/* Header de la Columna */}
+      <div className="flex justify-between items-center mb-5 px-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-[7px] font-black uppercase tracking-[0.2em] opacity-40 ${config.text}`}>
+              {config.label}
+            </span>
+            <div className="flex items-center gap-2">
+              {!isEditingTitle && config.icon}
+              <EditableEntity
+                initialValue={column.title}
+                isEditing={isEditingTitle && canEdit}
+                onSave={(val) => { actions.updateColumn(val); setIsEditingTitle(false); }}
+                onCancel={() => setIsEditingTitle(false)}
+                className={`font-black text-xs uppercase tracking-[0.2em] truncate ${config.text}`}
+              />
+              {!isEditingTitle && (
+                <span className="bg-white/90 text-emerald-700 px-2.5 py-1 rounded-full text-[9px] font-black border border-emerald-100/50 shadow-sm ml-1">
+                  {column.cards?.length || 0}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-
-        <button 
-          onClick={handleDeleteColumn}
-          className="opacity-0 group-hover/list:opacity-100 text-emerald-300 hover:text-red-500 transition-all p-2 hover:bg-red-50 rounded-2xl ml-2 flex-shrink-0"
-        >
-          <DeleteIcon className="h-4 w-4" />
-        </button>
+        {!isEditingTitle && menuOptions.length > 0 && <DropdownMenu options={menuOptions} />}
       </div>
       
-      {/* Contenedor de Tarjetas: 
-          - Añadimos pt-2 para que el botón negativo de la primera tarjeta no se corte.
-          - overflow-x-hidden para eliminar la barra horizontal que mencionas.
-      */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-2 custom-scrollbar scroll-smooth">
-        <div className="space-y-4 mb-4">
-          {column.cards?.map((card: Card) => (
-            <div 
-              key={card.id} 
-              className="bg-white p-4 rounded-[1.5rem] shadow-sm border border-emerald-50 hover:border-emerald-300 hover:shadow-lg transition-all group relative"
-            >
-              <EditableText 
-                initialValue={card.title}
-                type="card.update"
-                idKey="card_id"
-                idValue={card.id}
-                className="text-sm text-emerald-950 font-semibold leading-relaxed block"
-              />
-              
-              {/* Botón de eliminar: 
-                  Cambiamos de -top-2 a top-1 para evitar que se salga del contenedor padre y sea recortado por el overflow.
-              */}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteCardMutation.mutate({ listId: String(column.id), cardId: String(card.id) });
-                }}
-                className="absolute top-1 -right-1 opacity-0 group-hover:opacity-100 bg-red-500 text-white p-1 rounded-full shadow-lg hover:bg-red-600 transition-all z-10 scale-90 hover:scale-110"
-              >
-                <CloseIcon className="h-3 w-3" />
-              </button>
-            </div>
+      {/* Área de Tarjetas */}
+      <DroppableWrapper id={column.id} className="flex-1 overflow-y-auto px-1 custom-scrollbar min-h-[150px]">
+        <div className="space-y-4 pb-4">
+          {column.cards?.map((card, cardIndex) => (
+            <CardItem 
+              key={`${column.id}-${card.id}`} 
+              card={card} 
+              index={cardIndex}
+              isColumnDone={config.isDone}
+              onDelete={canDelete ? () => actions.deleteCard(card.id) : undefined}
+              onUpdate={canEdit ? (newTitle) => actions.updateCard(card.id, newTitle) : undefined}
+            />
           ))}
         </div>
+      </DroppableWrapper>
 
-        <div className="pb-2"> {/* Espaciado inferior para el formulario */}
-          <CreateCardForm columnId={column.id} showPlaceholder={!hasCards} />
-        </div>
+      {/* Footer: Botón Nueva Tarea condicional */}
+      <div className="mt-4 px-1">
+        {isLoadingPermissions ? (
+          <div className="w-full py-4 bg-slate-200/20 animate-pulse rounded-[1.8rem]" />
+        ) : canEdit ? (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            disabled={isCreatingCard}
+            className={`w-full py-4 border rounded-[1.8rem] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm ${config.button}`}
+          >
+            {isCreatingCard ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+            {isCreatingCard ? "Sincronizando..." : "Nueva Tarea"}
+          </button>
+        ) : (
+          <div className="w-full py-4 bg-slate-100/50 border border-dashed border-slate-300 rounded-[1.8rem] flex items-center justify-center gap-2 opacity-60">
+            <Lock size={14} className="text-slate-400" />
+            <span className="text-[9px] font-black uppercase text-slate-400">Solo lectura ({role})</span>
+          </div>
+        )}
       </div>
+
+      {isModalOpen && canEdit && (
+        <TaskModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={(data: CreateCardDTO) => actions.createCard(data, () => setIsModalOpen(false))}
+          columnId={column.id}
+        />
+      )}
     </div>
   );
 };
