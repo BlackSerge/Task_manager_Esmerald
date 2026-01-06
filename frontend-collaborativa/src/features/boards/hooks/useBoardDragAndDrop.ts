@@ -1,47 +1,42 @@
 import { DropResult } from "@hello-pangea/dnd";
 import { useBoardsStore } from "../store/board.store";
-import { useMoveCardMutation } from "./useBoardMutations"; // ✅ Usamos el nuevo hook
+import { useMoveCardMutation } from "./useMoveCardMutation.ts";
 import { confettiService } from "@/shared/services/confetti.service";
 import { Board } from "../types/board.types";
 
 /**
  * Hook de orquestación para el Drag and Drop.
- * Responsabilidades: Validar el drop, disparar la persistencia y gestionar celebraciones.
+ * Normalizamos el boardId como string para ser consistentes con los hooks de React Query.
  */
-export const useBoardDragAndDrop = (boardId: number) => {
-  // ✅ Usamos la mutación especializada que invalida la caché de React Query
-  const { mutate: moveCard } = useMoveCardMutation(String(boardId));
+export const useBoardDragAndDrop = (boardId: string | undefined) => {
+  const queryClient = useMoveCardMutation(boardId || "");
+  const { mutate: moveCard } = queryClient;
   
-  // Obtenemos el board del store para la lógica de celebración
   const boards = useBoardsStore((state) => state.boards);
 
   const handleDragEnd = (result: DropResult): void => {
     const { destination, source, draggableId } = result;
 
-    // 1. Validaciones básicas
-    if (!destination) return;
+    if (!destination || !boardId) return;
+    
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index 
     ) return;
 
-    // 2. Ejecutar actualización en Backend
-    // El backend espera el ID de la columna destino y el nuevo orden
+    // Ejecutamos la mutación (conversión segura a número aquí)
     moveCard({
       cardId: Number(draggableId),
       columnId: Number(destination.droppableId),
-      order: destination.index // El backend se encarga de reordenar el resto
+      order: destination.index
     });
 
-    // 3. Lógica de Celebración (Confeti)
     checkCelebration(destination.droppableId);
   };
 
-  /**
-   * Lógica interna para determinar si se debe disparar el confeti
-   */
   const checkCelebration = (targetDroppableId: string): void => {
-    const currentBoard = boards.find((b) => Number(b.id) === boardId) as Board | undefined;
+    // Buscamos el board comparando strings para evitar errores de tipo
+    const currentBoard = boards.find((b) => String(b.id) === String(boardId)) as Board | undefined;
 
     if (currentBoard?.columns) {
       const targetColumnId = Number(targetDroppableId);

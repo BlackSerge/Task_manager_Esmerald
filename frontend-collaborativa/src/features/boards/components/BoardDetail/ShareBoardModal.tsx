@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { X, Search, UserPlus, Shield, CheckCircle2, ArrowRight, User, Loader2, Trash2 } from "lucide-react";
+import { X, Search, UserPlus, Shield, CheckCircle2, ArrowRight, Loader2, Trash2, AlertCircle } from "lucide-react";
 import { Board, UserRole } from "../../types/board.types";
 import { useBoardTeam } from "../../hooks/useBoardTeam";
 import { AuthUser } from "@/features/auth/types/auth.types";
+import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 
 interface Props {
   board: Board;
@@ -18,23 +19,36 @@ export const ShareBoardModal: React.FC<Props> = ({ board, onClose }) => {
     invite, 
     isInviting,
     removeMember,
-    isRemoving 
+    isRemoving,
   } = useBoardTeam(board.id.toString());
   
   const [selectedUser, setSelectedUser] = useState<AuthUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>('editor');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<{ id: number; name: string } | null>(null);
 
-  
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (localError) setLocalError(null);
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSelectToInvite = (user: AuthUser) => {
+    setLocalError(null);
+    setSelectedUser(user);
+  };
+
   const handleInvite = (): void => {
     if (!selectedUser) return;
     
-    
+    const isAlreadyMember = board.members?.some(m => m.user.id === selectedUser.id);
+    if (isAlreadyMember) {
+      setLocalError("Este usuario ya forma parte del equipo.");
+      return;
+    }
+
     invite(
-      { 
-        user_id: selectedUser.id, 
-        role: selectedRole 
-      }, 
+      { user: selectedUser, role: selectedRole }, 
       {
         onSuccess: () => {
           setShowSuccess(true);
@@ -43,166 +57,184 @@ export const ShareBoardModal: React.FC<Props> = ({ board, onClose }) => {
             setSelectedUser(null);
             setSearchQuery("");
           }, 2000);
+        },
+        onError: (err: unknown) => {
+          const errorResponse = err as { response?: { data?: { message?: string } } };
+          setLocalError(errorResponse.response?.data?.message || "Error al invitar");
         }
       }
     );
   };
 
+  const handleConfirmDelete = () => {
+    if (!memberToDelete) return;
+    removeMember(memberToDelete.id, {
+      onSuccess: () => setMemberToDelete(null)
+    });
+  };
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-emerald-950/40 backdrop-blur-md">
-      <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden border border-emerald-100 animate-in fade-in zoom-in duration-300">
-        
-        {/* HEADER */}
-        <div className="p-8 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/30">
-          <div>
-            <h2 className="text-2xl font-black text-emerald-950">Compartir</h2>
-            <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.2em]">Tablero: {board.title}</p>
-          </div>
-          <button onClick={onClose} className="p-3 hover:bg-white rounded-2xl text-emerald-400 transition-all shadow-sm">
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="p-8 space-y-6">
+    <>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-emerald-950/40 backdrop-blur-md">
+        <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden border border-emerald-100 animate-in fade-in zoom-in duration-300">
           
-          {/* ESTADO 1: BÚSQUEDA */}
-          {!selectedUser && !showSuccess && (
-            <div className="space-y-4 animate-in slide-in-from-top-2">
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                  {isSearching ? <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" /> : <Search className="text-emerald-300" size={18} />}
-                </div>
-                <input 
-                  type="text"
-                  autoFocus
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar por nombre o email..."
-                  className="w-full h-14 pl-12 pr-4 bg-emerald-50/50 border-2 border-emerald-100 focus:border-emerald-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-emerald-900"
-                />
+          {/* HEADER */}
+          <div className="p-8 border-b border-emerald-50 flex justify-between items-center bg-emerald-50/30">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-emerald-600 rounded-2xl text-white shadow-lg shadow-emerald-200">
+                 <UserPlus size={20} />
               </div>
-
-              {searchResults.length > 0 && (
-                <div className="bg-white rounded-3xl border border-emerald-100 shadow-xl max-h-48 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                  {searchResults.map(user => (
-                    <button 
-                      key={user.id}
-                      onClick={() => setSelectedUser(user)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-emerald-50 rounded-2xl transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600">
-                          <User size={18} />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-black text-emerald-950">{user.username}</p>
-                          <p className="text-[10px] font-bold text-emerald-400">{user.email}</p>
-                        </div>
-                      </div>
-                      <ArrowRight size={14} className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-all" />
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div>
+                <h2 className="text-2xl font-black text-emerald-950">Equipo</h2>
+                <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.2em]">{board.title}</p>
+              </div>
             </div>
-          )}
+            <button onClick={onClose} className="p-3 hover:bg-white rounded-2xl text-emerald-400 transition-all shadow-sm">
+              <X size={24} />
+            </button>
+          </div>
 
-          {/* ESTADO 2: CONFIGURACIÓN DE ROL */}
-          {selectedUser && !showSuccess && (
-            <div className="space-y-6 animate-in zoom-in-95 duration-200">
-              <div className="p-6 bg-emerald-50 rounded-[2.5rem] border-2 border-emerald-100">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white font-black">
-                    {selectedUser.username.substring(0, 2).toUpperCase()}
+          <div className="p-8 space-y-6">
+            {localError && (
+              <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 animate-in shake duration-300">
+                <AlertCircle size={18} />
+                <p className="text-xs font-bold">{localError}</p>
+              </div>
+            )}
+
+            {!selectedUser && !showSuccess && (
+              <div className="space-y-4 animate-in slide-in-from-top-2">
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                    {isSearching ? <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" /> : <Search className="text-emerald-300" size={18} />}
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1">Invitar a:</p>
-                    <h3 className="font-black text-emerald-950 text-lg">{selectedUser.username}</h3>
-                  </div>
+                  <input 
+                    type="text"
+                    autoFocus
+                    value={searchQuery}
+                    onChange={handleQueryChange}
+                    placeholder="Buscar por nombre o email..."
+                    className="w-full h-14 pl-12 pr-4 bg-emerald-50/50 border-2 border-emerald-100 focus:border-emerald-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-emerald-900"
+                  />
                 </div>
 
-                <div className="flex gap-2">
-                  {(['admin', 'editor', 'viewer'] as const).map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => setSelectedRole(role)}
-                      className={`flex-1 py-3 px-2 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${
-                        selectedRole === role 
-                          ? 'border-emerald-600 bg-white shadow-lg text-emerald-600 scale-105 z-10' 
-                          : 'border-transparent bg-emerald-100/50 text-emerald-400 hover:bg-emerald-100'
-                      }`}
-                    >
-                      <Shield size={14} />
-                      <span className="text-[9px] font-black uppercase">{role}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setSelectedUser(null)} 
-                  className="flex-1 h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest text-emerald-500 hover:bg-emerald-50 transition-colors"
-                >
-                  Volver
-                </button>
-                <button 
-                  onClick={handleInvite}
-                  disabled={isInviting}
-                  className="flex-[2] h-14 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
-                >
-                  {isInviting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><UserPlus size={18} /> Confirmar</>}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ESTADO 3: ÉXITO */}
-          {showSuccess && (
-            <div className="py-12 flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in">
-              <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-2xl">
-                <CheckCircle2 size={44} />
-              </div>
-              <h3 className="text-2xl font-black text-emerald-950">¡Invitación enviada!</h3>
-            </div>
-          )}
-
-          {/* LISTA DE MIEMBROS ACTUALES */}
-          {!showSuccess && (
-            <div className="pt-6 border-t border-emerald-50">
-              <h3 className="text-[10px] font-black text-emerald-300 uppercase tracking-[0.2em] mb-4">
-                Equipo ({board.members?.length})
-              </h3>
-              <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                {board.members?.map(member => (
-                  <div key={member.user.id} className="flex items-center justify-between group p-2 hover:bg-emerald-50/50 rounded-2xl transition-all">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 font-black text-[10px]">
-                        {member.user.username?.substring(0, 2).toUpperCase()}
-                      </div>
-                      <span className="text-sm font-bold text-emerald-900">{member.user.username}</span>
-                      <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-100">
-                        {member.role || 'miembro'}
-                      </span>
-                    </div>
-                    
-                    {board.owner.id !== member.user.id && (
+                {searchResults.length > 0 && (
+                  <div className="bg-white rounded-3xl border border-emerald-100 shadow-xl max-h-48 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                    {searchResults.map(user => (
                       <button 
-                        onClick={() => removeMember(member.user.id)}
-                        disabled={isRemoving}
-                        className="p-2 text-emerald-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100 disabled:opacity-30"
+                        key={user.id}
+                        onClick={() => handleSelectToInvite(user)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-emerald-50 rounded-2xl transition-all group"
                       >
-                        {isRemoving ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={16} />}
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 font-bold uppercase">
+                            {user.username.charAt(0)}
+                          </div>
+                          <div className="text-left">
+                            <p className="text-sm font-black text-emerald-950">{user.username}</p>
+                            <p className="text-[10px] font-bold text-emerald-400">{user.email}</p>
+                          </div>
+                        </div>
+                        <ArrowRight size={14} className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-all" />
                       </button>
-                    )}
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          )}
+            )}
+
+            {selectedUser && !showSuccess && (
+              <div className="space-y-6 animate-in zoom-in-95 duration-200">
+                <div className="p-6 bg-emerald-50 rounded-[2.5rem] border-2 border-emerald-100">
+                  {/* Selector de Rol */}
+                  <div className="flex gap-2">
+                    {(['admin', 'editor', 'viewer'] as const).map((role) => (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => setSelectedRole(role)}
+                        className={`flex-1 py-3 px-2 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${
+                          selectedRole === role ? 'border-emerald-600 bg-white shadow-lg text-emerald-600' : 'border-transparent bg-emerald-100/50 text-emerald-400'
+                        }`}
+                      >
+                        <Shield size={14} />
+                        <span className="text-[9px] font-black uppercase">{role}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button onClick={() => setSelectedUser(null)} className="flex-1 h-14 rounded-2xl font-black text-[11px] uppercase text-emerald-500">Volver</button>
+                  <button onClick={handleInvite} disabled={isInviting} className="flex-[2] h-14 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase shadow-xl flex items-center justify-center gap-2">
+                    {isInviting ? <Loader2 className="animate-spin" /> : "Confirmar"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showSuccess && (
+              <div className="py-12 flex flex-col items-center justify-center space-y-4 animate-in fade-in zoom-in">
+                <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-2xl">
+                  <CheckCircle2 size={44} />
+                </div>
+                <h3 className="text-2xl font-black text-emerald-950">¡Miembro añadido!</h3>
+              </div>
+            )}
+
+            {/* LISTA DE EQUIPO - BOTÓN ROJO MEJORADO */}
+            {!showSuccess && (
+              <div className="pt-6 border-t border-emerald-50">
+                <h3 className="text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-4">
+                  Equipo Actual ({board.members?.length})
+                </h3>
+                <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  {board.members?.map(member => (
+                    <div key={member.user.id} className="flex items-center justify-between group p-3 bg-emerald-50/30 hover:bg-white hover:shadow-md rounded-2xl transition-all border border-transparent hover:border-emerald-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-white border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 font-black text-[11px] shadow-sm">
+                          {member.user.username?.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-emerald-950 leading-tight">{member.user.username}</p>
+                          <span className="text-[8px] font-black uppercase text-emerald-400">
+                            {member.role || 'miembro'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {board.owner.id !== member.user.id ? (
+                        <button 
+                          onClick={() => setMemberToDelete({ id: member.user.id, name: member.user.username })}
+                          disabled={isRemoving}
+                          className="p-2.5 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm border border-red-100 opacity-0 group-hover:opacity-100 flex items-center justify-center"
+                          title="Eliminar miembro"
+                        >
+                          <Trash2 size={16} strokeWidth={2.5} />
+                        </button>
+                      ) : (
+                        <div className="p-2 text-amber-400" title="Propietario">
+                          <Shield size={16} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      <ConfirmModal
+        isOpen={!!memberToDelete}
+        onClose={() => setMemberToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="¿Eliminar miembro?"
+        description={`Estás por remover a ${memberToDelete?.name} del equipo de trabajo. No tendrá más acceso a este tablero.`}
+        confirmText={isRemoving ? "Eliminando..." : "Eliminar miembro"}
+        variant="danger"
+      />
+    </>
   );
 };

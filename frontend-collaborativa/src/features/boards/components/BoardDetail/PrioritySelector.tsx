@@ -1,31 +1,43 @@
-
 import React from "react";
 import { PriorityLevel } from "../../types/board.types";
+import { ChevronRight } from "lucide-react";
 
-const priorities: { value: PriorityLevel; label: string; color: string }[] = [
-  { value: "low", label: "Baja", color: "bg-emerald-100 text-emerald-700" },
-  { value: "medium", label: "Media", color: "bg-amber-100 text-amber-700" },
-  { value: "high", label: "Alta", color: "bg-orange-100 text-orange-700" },
- 
-];
-
-interface Props {
+interface PrioritySelectorProps {
   selected: PriorityLevel;
   onChange: (priority: PriorityLevel) => void;
 }
 
-export const PrioritySelector: React.FC<Props> = ({ selected, onChange }) => (
-  <div className="flex gap-2">
-    {priorities.map((p) => (
-      <button
-        key={p.value}
-        type="button"
-        onClick={() => onChange(p.value)}
-        className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border-2 
-          ${selected === p.value ? `${p.color} border-current scale-105 shadow-md` : "bg-gray-50 border-transparent text-gray-400 opacity-60 hover:opacity-100"}`}
-      >
-        {p.label}
-      </button>
-    ))}
-  </div>
-);
+export const PrioritySelector: React.FC<PrioritySelectorProps> = ({ selected, onChange }) => {
+  const priorities: { id: PriorityLevel; label: string; color: string }[] = [
+    { id: 'low', label: 'Baja', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    { id: 'medium', label: 'Media', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+    { id: 'high', label: 'Alta', color: 'bg-rose-100 text-rose-700 border-rose-200' },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      {priorities.map((p) => {
+        const isSelected = selected === p.id;
+        return (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onChange(p.id)}
+            className={`
+              relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300
+              ${isSelected 
+                ? `${p.color} ring-4 ring-emerald-500/10 scale-[1.02] shadow-sm` 
+                : 'bg-slate-50 border-transparent text-slate-400 hover:bg-white hover:border-slate-200'
+              }
+            `}
+          >
+            <span className="text-[10px] font-black uppercase tracking-tighter mb-1">
+              {p.label}
+            </span>
+            {isSelected && <ChevronRight size={12} className="opacity-50" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+};

@@ -31,6 +31,26 @@ class BoardTeamView(APIView):
 
         except ValidationError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+    def delete(self, request, board_id: int, user_id: int) -> Response:
+        """
+        Elimina a un miembro del equipo del tablero.
+        """
+        try:
+            team_service.board_remove_member(
+                board_id=board_id,
+                user_id=user_id,
+                requested_by=request.user
+            )
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"error": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        except Exception as e:
+            return Response({"error": "Ocurrió un error inesperado"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class CardMoveView(APIView):
     """

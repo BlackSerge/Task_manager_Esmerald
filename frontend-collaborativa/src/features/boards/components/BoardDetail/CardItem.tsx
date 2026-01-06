@@ -1,16 +1,16 @@
-import React, { useState } from "react";
-import { Card, BoardMember, PriorityLevel } from "../../types/board.types";
+import React, { useState, useMemo, useCallback } from "react";
+import { 
+  Edit2, Trash2, CheckCircle2, Circle, 
+  ShieldCheck, ShieldAlert, User, AlignLeft, ChevronRight 
+} from "lucide-react";
+
+import { Card, BoardMember, PriorityLevel, CreateCardPayload } from "../../types/board.types";
 import { DraggableWrapper } from "@/shared/components/dnd/DraggableWrapper";
 import { EditableEntity } from "../EditableEntity";
 import { PriorityBadge } from "../Board/PriorityBadge";
 import { DateDisplay } from "@/shared/components/ui/DateDisplay";
 import { DropdownMenu, DropdownOption } from "@/shared/components/ui/DropdownMenu";
-import { TaskModal } from "../BoardDetail/TaskModal"; // 👈 Importamos el modal reciclado
-import { useCardItem } from "../../hooks/useCardItems";
-import { 
-  Edit2, Trash2, CheckCircle2, Circle, 
-  ShieldCheck, ShieldAlert, User, AlignLeft, ChevronRight 
-} from "lucide-react";
+import { TaskModal } from "../BoardDetail/TaskModal";
 
 interface CardItemProps {
   card: Card;
@@ -23,34 +23,37 @@ interface CardItemProps {
 export const CardItem: React.FC<CardItemProps> = ({ 
   card, index, isColumnDone, onDelete, onUpdate 
 }) => {
-  // Estado para controlar el Modal de Edición
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
 
-  const {
-    isEditingTitle,
-    setIsEditingTitle,
-    handleToggleComplete,
-    handleUpdateTitle,
-    handleUpdatePriority
-  } = useCardItem(card, onUpdate);
+  // Derivamos el estado de completado: si la card lo dice O si la columna es "Done"
+  const effectiveIsCompleted = card.is_completed || isColumnDone;
 
-  // Opciones de cambio rápido de prioridad desde el Badge
-  const priorityOptions: DropdownOption[] = [
-    { label: "Baja", icon: <ChevronRight size={14} />, onClick: () => handleUpdatePriority('low' as PriorityLevel) },
-    { label: "Media", icon: <ChevronRight size={14} />, onClick: () => handleUpdatePriority('medium' as PriorityLevel) },
-    { label: "Alta", icon: <ChevronRight size={14} />, onClick: () => handleUpdatePriority('high' as PriorityLevel) },
-  ];
-
-  const handleOpenEdit = (e: React.MouseEvent) => {
+  const handleToggleComplete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsModalOpen(true);
-  };
+    onUpdate?.({ is_completed: !card.is_completed });
+  }, [card.is_completed, onUpdate]);
 
-  const handleModalSave = (data: { title: string; description: string; priority: PriorityLevel }) => {
-    // Al editar, enviamos el objeto parcial al service layer a través de onUpdate
+  const handleUpdatePriority = useCallback((priority: PriorityLevel) => {
+    onUpdate?.({ priority });
+  }, [onUpdate]);
+
+  const handleModalSave = useCallback((data: CreateCardPayload) => {
     onUpdate?.(data);
     setIsModalOpen(false);
-  };
+  }, [onUpdate]);
+
+  const priorityOptions: DropdownOption[] = useMemo(() => [
+    { label: "Baja", icon: <ChevronRight size={14} />, onClick: () => handleUpdatePriority('low') },
+    { label: "Media", icon: <ChevronRight size={14} />, onClick: () => handleUpdatePriority('medium') },
+    { label: "Alta", icon: <ChevronRight size={14} />, onClick: () => handleUpdatePriority('high') },
+  ], [handleUpdatePriority]);
+
+  const menuOptions: DropdownOption[] = useMemo(() => [
+    { label: "Editar Título", icon: <Edit2 size={14} />, onClick: () => setIsEditingTitle(true) },
+    { label: "Editar Detalles", icon: <AlignLeft size={14} />, onClick: () => setIsModalOpen(true) },
+    ...(onDelete ? [{ label: "Eliminar", icon: <Trash2 size={14} />, variant: "danger" as const, onClick: onDelete }] : [])
+  ], [onDelete]);
 
   const renderOwnerBadge = (owner?: BoardMember) => {
     if (!owner?.user) return null;
@@ -63,7 +66,7 @@ export const CardItem: React.FC<CardItemProps> = ({
     return (
       <div className="flex items-center gap-1.5 bg-emerald-50/50 px-2 py-1 rounded-full border border-emerald-100/50 shadow-sm">
         <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-[8px] font-black text-white uppercase shrink-0">
-          {owner.user.email.substring(0, 2)}
+          {owner.user.username.substring(0, 2)}
         </div>
         <span className="text-[9px] font-black text-emerald-900/60 uppercase tracking-tighter">
           {owner.role}
@@ -80,21 +83,20 @@ export const CardItem: React.FC<CardItemProps> = ({
           <div className={`
             group relative p-5 rounded-[2.2rem] border transition-all duration-300 ease-out bg-white
             ${isDragging 
-              ? "shadow-2xl border-emerald-400 scale-[1.05] z-50 w-[280px]" 
+              ? "shadow-2xl border-emerald-400 scale-[1.05] z-50" 
               : "shadow-sm border-emerald-50/50 hover:border-emerald-200"
             }
-            ${(card.is_completed || isColumnDone) && !isDragging ? "bg-slate-50/50 opacity-80" : ""}
+            ${effectiveIsCompleted && !isDragging ? "bg-slate-50/50 opacity-80" : ""}
           `}>
             
             <div className="flex justify-between items-start mb-3 pl-1">
               <div className="flex items-center gap-2">
                  <button onClick={handleToggleComplete} className="transition-transform active:scale-90 outline-none">
-                   {card.is_completed 
+                   {effectiveIsCompleted
                       ? <CheckCircle2 size={18} className="text-emerald-500 fill-emerald-50" />
                       : <Circle size={18} className="text-slate-300 hover:text-emerald-400" />
                    }
                  </button>
-
                  <DropdownMenu options={priorityOptions}>
                     <PriorityBadge priority={card.priority} />
                  </DropdownMenu>
@@ -102,36 +104,28 @@ export const CardItem: React.FC<CardItemProps> = ({
               
               {!isEditingTitle && (
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <DropdownMenu
-                    options={[
-                      { label: "Editar Título", icon: <Edit2 size={14} />, onClick: () => setIsEditingTitle(true) },
-                      { label: "Editar Detalles", icon: <AlignLeft size={14} />, onClick: () => setIsModalOpen(true) },
-                      ...(onDelete ? [{ label: "Eliminar", icon: <Trash2 size={14} />, variant: "danger" as const, onClick: onDelete }] : [])
-                    ]}
-                  />
+                  <DropdownMenu options={menuOptions} />
                 </div>
               )}
             </div>
 
             <div className="px-1">
-              {/* Edición rápida de Título */}
               <EditableEntity
                 initialValue={card.title}
                 isEditing={isEditingTitle}
-                onSave={handleUpdateTitle}
+                onSave={(val) => { onUpdate?.({ title: val }); setIsEditingTitle(false); }}
                 onCancel={() => setIsEditingTitle(false)}
                 className={`text-[14px] font-black leading-snug block mb-2 tracking-tight
-                  ${card.is_completed || isColumnDone ? "text-slate-400 line-through decoration-slate-300" : "text-emerald-950"}
+                  ${effectiveIsCompleted ? "text-slate-400 line-through decoration-slate-300" : "text-emerald-950"}
                 `}
               />
 
-              {/* Área de descripción que abre el modal de edición profunda */}
               <div 
                 className={`mt-2 text-[11.5px] leading-relaxed font-medium mb-3 block cursor-pointer hover:bg-emerald-50/60 rounded-xl p-2 transition-all border border-transparent hover:border-emerald-100/50
-                  ${card.is_completed ? "text-slate-300" : "text-emerald-600/75"}
+                  ${effectiveIsCompleted ? "text-slate-300" : "text-emerald-600/75"}
                   ${!card.description && "italic opacity-50"}
                 `}
-                onClick={handleOpenEdit}
+                onClick={() => setIsModalOpen(true)}
               >
                 {card.description || "Añadir una descripción detallada..."}
               </div>
@@ -145,14 +139,16 @@ export const CardItem: React.FC<CardItemProps> = ({
         )}
       </DraggableWrapper>
 
-      {/* Modal Reutilizado configurado para Edición */}
-      <TaskModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleModalSave}
-        initialData={card} 
-        columnId={0} 
-      />
+      {isModalOpen && (
+        <TaskModal 
+          key={`edit-${card.id}`}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleModalSave}
+          initialData={card} 
+          columnId={0} 
+        />
+      )}
     </>
   );
 };

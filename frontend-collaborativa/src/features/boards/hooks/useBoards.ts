@@ -39,12 +39,11 @@ export const useBoardDetail = (id: string | undefined) => {
     queryFn: async () => {
       if (!id) throw new Error("ID requerido");
       const board = await boardService.getBoardDetail(id);
-      updateBoard(board);
+      updateBoard(board); 
       return board;
     },
     enabled: !!id,
-    // 💡 Reducimos staleTime para asegurar que las invalidaciones disparen un refetch inmediato
-    staleTime: 0, 
+    staleTime: 0,
   });
 };
 
@@ -160,19 +159,19 @@ export const useDeleteCard = () => {
   });
 };
 
-export const useMoveCard = () => {
+export const useMoveCard = (boardId: string) => {
   const queryClient = useQueryClient();
   const moveCardStore = useBoardsStore((state) => state.moveCard);
 
-  return useMutation<void, Error, { boardId: number; cardId: number; fromColumnId: number; toColumnId: number; order: number }>({
-    mutationFn: ({ cardId, toColumnId, order }) => boardService.moveCard(cardId, toColumnId, order),
+  return useMutation({
+    mutationFn: (params: { cardId: number; columnId: number; order: number; fromColumnId: number }) =>
+      boardService.moveCard(params.cardId, params.columnId, params.order),
     onSuccess: (_, variables) => {
-      // Sincronizamos el movimiento en el Store local
-      moveCardStore(variables.fromColumnId, variables.cardId, variables.toColumnId, variables.order);
-      
-      // 🎯 Refresco forzado de la estructura completa del tablero
+      // 1. Actualizamos localmente para feedback instantáneo
+      moveCardStore(variables.fromColumnId, variables.cardId, variables.columnId, variables.order);
+      // 2. Invalidamos AMBAS llaves para que BoardCard y BoardDetail se refresquen
       queryClient.invalidateQueries({ queryKey: boardKeys.all });
-      queryClient.invalidateQueries({ queryKey: boardKeys.detail(variables.boardId) });
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
     },
   });
 };

@@ -5,6 +5,7 @@ import { formatDate } from "@/shared/utils/date.utils";
 import { DropdownMenu } from "@/shared/components/ui/DropdownMenu";
 import { EditableEntity } from "../EditableEntity"; 
 import { usePermissions } from "../../hooks/usePermissions";
+import { useBoardsStore } from "../../store/board.store";
 
 interface BoardCardProps {
   board: Board;
@@ -13,18 +14,27 @@ interface BoardCardProps {
   onDelete: (id: string, title: string) => void;
 }
 
-export const BoardCard: React.FC<BoardCardProps> = ({ board, onClick, onEdit, onDelete }) => {
+export const BoardCard: React.FC<BoardCardProps> = ({ board: initialBoard, onClick, onEdit, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
+
+  // Sincronización con el store para métricas en tiempo real
+  const board = useBoardsStore((state) => 
+    state.boards.find((b) => String(b.id) === String(initialBoard.id)) || initialBoard
+  );
+
   const { role, canEdit, canDelete, isAdmin } = usePermissions(board);
-  
-  // Prioridad de fecha: Actividad reciente > Modificación > Creación
   const displayDate = board.last_activity ?? board.updated_at ?? board.created_at;
 
-  // Cálculo de porcentaje seguro para evitar NaN
+  // Cálculo de progreso blindado contra ceros
   const progress = useMemo(() => {
-    if (!board.total_cards || board.total_cards === 0) return 0;
-    return Math.round(((board.completed_cards ?? 0) / board.total_cards) * 100);
-  }, [board.completed_cards, board.total_cards]);
+    const total = board.total_cards ?? 0;
+    const completed = board.completed_cards ?? 0;
+    
+    if (total === 0) return 0;
+    
+    // Si ya viene el porcentaje del store/backend, lo usamos; si no, lo calculamos
+    return board.progress_percentage ?? Math.round((completed / total) * 100);
+  }, [board.completed_cards, board.total_cards, board.progress_percentage]);
 
   const handleSaveTitle = (newTitle: string): void => {
     onEdit(board.id.toString(), newTitle);
@@ -56,7 +66,6 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board, onClick, onEdit, on
       onClick={!isEditing ? onClick : undefined}
       className="group relative bg-white border border-emerald-100 rounded-[2.5rem] p-6 hover:shadow-2xl hover:shadow-emerald-900/10 transition-all duration-500 cursor-pointer border-b-4 active:border-b-0 active:translate-y-1"
     >
-      {/* Header: Icono + Badge + Menu */}
       <div className="flex justify-between items-start mb-6">
         <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl group-hover:bg-emerald-500 group-hover:text-white transition-colors duration-500 shadow-sm">
           <Layout size={24} />
@@ -76,7 +85,6 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board, onClick, onEdit, on
         </div>
       </div>
 
-      {/* Título Editable */}
       <div className="mb-6" onClick={(e) => isEditing && e.stopPropagation()}>
         <EditableEntity
           initialValue={board.title}
@@ -87,15 +95,13 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board, onClick, onEdit, on
         />
       </div>
 
-      {/* Miembros del equipo */}
       <MemberAvatars members={board.members} />
 
-      {/* Estadísticas: Secciones y Tareas */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <StatItem 
           icon={<Layout size={12} />} 
           label="Secciones" 
-          value={board.columns_count ?? 0} 
+          value={board.columns_count ?? board.columns?.length ?? 0} 
         />
         <StatItem 
           icon={<CheckSquare size={12} />} 
@@ -105,7 +111,6 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board, onClick, onEdit, on
         />
       </div>
 
-      {/* Barra de Progreso con Porcentaje */}
       <div className="space-y-2 mb-6">
         <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
           <span className="text-emerald-800/40 text-[9px]">Completado</span>
@@ -114,7 +119,6 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board, onClick, onEdit, on
         <ProgressBar percentage={progress} />
       </div>
 
-      {/* Footer: Fecha y Acción */}
       <div className="flex items-center justify-between pt-4 border-t border-emerald-50">
         <div className="flex items-center gap-2 text-emerald-400 font-bold text-[10px] uppercase tracking-tighter">
           <Clock size={12} className="text-emerald-300" />
@@ -128,7 +132,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board, onClick, onEdit, on
   );
 };
 
-// --- Subcomponentes Optimizados ---
+// --- Subcomponentes auxiliares ---
 
 const MemberAvatars: React.FC<{ members?: BoardMember[] }> = ({ members = [] }) => {
   const limit = 4;
@@ -175,7 +179,7 @@ const ProgressBar: React.FC<{ percentage: number }> = ({ percentage }) => (
       className={`h-full transition-all duration-1000 ease-out rounded-full ${
         percentage === 100 ? 'bg-amber-500' : 'bg-emerald-500'
       }`}
-      style={{ width: `${Math.max(2, percentage)}%` }} // Mínimo 2% para que se vea el inicio
+      style={{ width: `${Math.max(2, percentage)}%` }} 
     />
   </div>
 );

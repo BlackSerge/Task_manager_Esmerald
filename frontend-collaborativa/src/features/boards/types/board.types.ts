@@ -57,6 +57,13 @@ export interface InviteMemberDto {
   role?: UserRole;
 }
 
+
+export interface CreateCardPayload {
+  title: string;
+  description: string;
+  priority: PriorityLevel;
+}
+
 export interface BoardsStore {
   boards: Board[];
   isLoading: boolean;

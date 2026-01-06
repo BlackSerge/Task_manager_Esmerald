@@ -4,8 +4,8 @@ import { Check, X } from "lucide-react";
 interface Props {
   initialValue: string;
   onSave: (newValue: string) => void;
-  isEditing?: boolean;    // 💡 Permite al Dropdown activar la edición
-  onCancel?: () => void;  // 💡 Notifica al padre cuando se cierra
+  isEditing?: boolean;    
+  onCancel?: () => void;  
   className?: string;
 }
 
