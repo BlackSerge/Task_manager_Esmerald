@@ -1,50 +1,55 @@
-// src/shared/utils/date.utils.ts
+import { 
+  format, 
+  formatDistanceToNow, 
+  isToday, 
+  isYesterday, 
+  differenceInDays, 
+  parseISO, 
+  isValid 
+} from "date-fns";
+import { es } from "date-fns/locale";
 
-/**
- * Formatea una fecha de manera "humana" o relativa.
- * Ejemplo: "Hoy", "Ayer", "hace 3 días" o "25 dic 2025"
- */
+
+const getValidDate = (dateString: string | undefined | null): Date | null => {
+  if (!dateString) return null;
+  const date = parseISO(dateString);
+  return isValid(date) ? date : null;
+};
+
+
 export const formatDate = (dateString: string | undefined | null): string => {
-  if (!dateString) return "---";
-  
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "Fecha inválida";
+  const date = getValidDate(dateString);
+  if (!date) return "---";
 
   const now = new Date();
-  const diffInMs = now.getTime() - date.getTime();
-  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
-  // Lógica de fechas relativas
-  if (diffInDays === 0) {
-    // Si fue hace menos de 1 hora, podríamos poner "Recién"
-    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-    if (diffInMinutes < 1) return "Ahora mismo";
-    if (diffInMinutes < 60) return `Hace ${diffInMinutes} min`;
-    
-    return "Hoy";
+ 
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (diffInSeconds < 30) return "Ahora mismo";
+
+  // 2. Lógica para Hoy/Ayer usando date-fns (más preciso que milisegundos manuales)
+  if (isToday(date)) {
+    return formatDistanceToNow(date, { addSuffix: true, locale: es });
   }
-  
-  if (diffInDays === 1) return "Ayer";
-  if (diffInDays < 7) return `Hace ${diffInDays} días`;
 
-  // Formato estándar para fechas más antiguas
-  return new Intl.DateTimeFormat("es-ES", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  if (isYesterday(date)) return "Ayer";
+
+  // 3. Si es hace menos de una semana
+  const daysDiff = differenceInDays(now, date);
+  if (daysDiff < 7) {
+    return `Hace ${daysDiff} días`;
+  }
+
+  // 4. Formato estándar para fechas antiguas 
+  return format(date, "dd MMM yyyy", { locale: es }).replace(".", "");
 };
 
 /**
- * Formato detallado para tooltips o modales (ej: 29 de diciembre de 2025, 14:30)
+ * Formato detallado para tooltips o modales.
  */
 export const formatFullDate = (dateString: string | undefined | null): string => {
-  if (!dateString) return "---";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "Fecha inválida";
+  const date = getValidDate(dateString);
+  if (!date) return "---";
 
-  return new Intl.DateTimeFormat("es-ES", {
-    dateStyle: "long",
-    timeStyle: "short",
-  }).format(date);
+  return format(date, "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es });
 };

@@ -1,16 +1,20 @@
+// src/features/boards/hooks/useBoards.ts
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { boardService } from "../services/board.service";
 import { useBoardsStore } from "../store/board.store";
-import { Board, Column, Card ,PriorityLevel } from "../types/board.types";
+import { Board, Column, Card, PriorityLevel } from "../types/board.types";
 
 export const boardKeys = {
   all: ['boards'] as const,
   lists: () => [...boardKeys.all, 'list'] as const,
   details: () => [...boardKeys.all, 'detail'] as const,
-  detail: (id: string | number) => [...boardKeys.details(), id] as const,
+  // 💡 Forzamos que el ID siempre sea string para evitar fallos de coincidencia de cache
+  detail: (id: string | number) => [...boardKeys.details(), String(id)] as const,
 };
 
-// 1. Obtener lista de tableros (BoardListSerializer)
+// --- HOOKS DE CONSULTA ---
+
 export const useBoards = () => {
   const setBoards = useBoardsStore((state) => state.setBoards);
 
@@ -21,10 +25,12 @@ export const useBoards = () => {
       setBoards(boards);
       return boards;
     },
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    staleTime: 0, 
   });
 };
 
-// 💡 2. Obtener detalle (BoardDetailSerializer - TRAE COLUMNAS)
 export const useBoardDetail = (id: string | undefined) => {
   const updateBoard = useBoardsStore((state) => state.updateBoard);
 
@@ -33,14 +39,17 @@ export const useBoardDetail = (id: string | undefined) => {
     queryFn: async () => {
       if (!id) throw new Error("ID requerido");
       const board = await boardService.getBoardDetail(id);
-      updateBoard(board); // Sincroniza con Zustand
+      updateBoard(board);
       return board;
     },
     enabled: !!id,
+    // 💡 Reducimos staleTime para asegurar que las invalidaciones disparen un refetch inmediato
+    staleTime: 0, 
   });
 };
 
-// 3. Crear un tablero
+// --- HOOKS DE MUTACIÓN ---
+
 export const useCreateBoard = () => {
   const queryClient = useQueryClient();
   const addBoard = useBoardsStore((state) => state.addBoard);
@@ -54,7 +63,6 @@ export const useCreateBoard = () => {
   });
 };
 
-// 4. Crear una columna
 export const useCreateColumn = () => {
   const queryClient = useQueryClient();
   const addColumn = useBoardsStore((state) => state.addColumn);
@@ -63,31 +71,25 @@ export const useCreateColumn = () => {
     mutationFn: ({ boardId, title }) => boardService.createColumn(boardId, title),
     onSuccess: (newColumn, variables) => {
       queryClient.invalidateQueries({ queryKey: boardKeys.all });
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(variables.boardId) });
       addColumn(variables.boardId, newColumn);
     },
   });
 };
 
-
 export const useCreateCard = () => {
   const queryClient = useQueryClient();
   const addCard = useBoardsStore((state) => state.addCard);
 
-  return useMutation<Card, Error, { columnId: number; title: string; description?: string; priority: PriorityLevel }>({
+  return useMutation<Card, Error, { boardId: number; columnId: number; title: string; description?: string; priority: PriorityLevel }>({
     mutationFn: ({ columnId, title, description, priority }) =>
       boardService.createCard(columnId, title, description || "", priority),
-    
     onSuccess: (newCard, variables) => {
-     
-      const cardToStore = {
-        ...newCard,
-        priority: newCard.priority || variables.priority
-      };
-
-      // Invalidamos para asegurar frescura de datos
-      queryClient.invalidateQueries({ queryKey: boardKeys.all });
+      const cardToStore = { ...newCard, priority: newCard.priority || variables.priority };
       
-      // Actualizamos el store con la tarjeta "asegurada"
+      // 🎯 Sincronización crucial
+      queryClient.invalidateQueries({ queryKey: boardKeys.all });
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(variables.boardId) });
       addCard(variables.columnId, cardToStore);
     },
   });
@@ -98,40 +100,38 @@ export const useUpdateColumn = () => {
   return useMutation<Column, Error, { boardId: number; columnId: number; title: string }>({
     mutationFn: ({ columnId, title }) => boardService.updateColumn(columnId, title),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: boardKeys.detail(String(variables.boardId)) });
+      queryClient.invalidateQueries({ queryKey: boardKeys.all });
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(variables.boardId) });
     },
   });
 };
 
-export const useUpdateCard = () => {
+export const useUpdateCard = (boardIdContext?: number) => { 
   const queryClient = useQueryClient();
-  
+  const updateCardStore = useBoardsStore((state) => state.updateCard);
+
   return useMutation<Card, Error, { boardId: number; cardId: number; payload: Partial<Card> }>({
     mutationFn: ({ cardId, payload }) => boardService.updateCard(cardId, payload),
-    
-    // Al empezar la mutación podrías hacer algo, pero el hook de DND ya hizo el movimiento en el store.
-    
-    onSuccess: (_, variables) => {
-      // Confirmamos los datos con el servidor en segundo plano
-      queryClient.invalidateQueries({ 
-        queryKey: boardKeys.detail(String(variables.boardId)) 
-      });
+    onSuccess: (updatedCard, variables) => {
+      const bId = variables.boardId || boardIdContext;
+
+      // Actualizamos store local primero (Optimistic UI parcial)
+      updateCardStore(updatedCard.column, updatedCard.id, updatedCard);
+      
+      // Invalidamos para que React Query traiga la verdad del servidor
+      queryClient.invalidateQueries({ queryKey: boardKeys.all });
+      if (bId) {
+        queryClient.invalidateQueries({ queryKey: boardKeys.detail(bId) });
+      }
     },
-
     onError: (error, variables) => {
-      
-      console.error("Error al mover tarjeta, revirtiendo...", error);
-      
-      queryClient.invalidateQueries({ 
-        queryKey: boardKeys.detail(String(variables.boardId)) 
-      });
-
-     
+      console.error("Error al actualizar tarjeta:", error);
+      queryClient.invalidateQueries({ queryKey: boardKeys.all });
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(variables.boardId) });
     },
   });
 };
 
-// 6. Eliminar una columna
 export const useDeleteColumn = () => {
   const queryClient = useQueryClient();
   const removeColumn = useBoardsStore((state) => state.removeColumn);
@@ -140,21 +140,39 @@ export const useDeleteColumn = () => {
     mutationFn: ({ columnId }) => boardService.deleteColumn(columnId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: boardKeys.all });
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(variables.boardId) });
       removeColumn(variables.boardId, variables.columnId);
     },
   });
 };
 
-// 7. Eliminar una tarjeta
 export const useDeleteCard = () => {
   const queryClient = useQueryClient();
   const removeCard = useBoardsStore((state) => state.removeCard);
 
-  return useMutation<void, Error, { columnId: number; cardId: number }>({
+  return useMutation<void, Error, { boardId: number; columnId: number; cardId: number }>({
     mutationFn: ({ cardId }) => boardService.deleteCard(cardId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: boardKeys.all });
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(variables.boardId) });
       removeCard(variables.columnId, variables.cardId);
+    },
+  });
+};
+
+export const useMoveCard = () => {
+  const queryClient = useQueryClient();
+  const moveCardStore = useBoardsStore((state) => state.moveCard);
+
+  return useMutation<void, Error, { boardId: number; cardId: number; fromColumnId: number; toColumnId: number; order: number }>({
+    mutationFn: ({ cardId, toColumnId, order }) => boardService.moveCard(cardId, toColumnId, order),
+    onSuccess: (_, variables) => {
+      // Sincronizamos el movimiento en el Store local
+      moveCardStore(variables.fromColumnId, variables.cardId, variables.toColumnId, variables.order);
+      
+      // 🎯 Refresco forzado de la estructura completa del tablero
+      queryClient.invalidateQueries({ queryKey: boardKeys.all });
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(variables.boardId) });
     },
   });
 };

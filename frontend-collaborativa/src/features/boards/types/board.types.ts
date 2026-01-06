@@ -7,11 +7,12 @@ export interface Card {
   description: string;
   order: number;
   column: number; 
+  is_completed: boolean;
   priority: PriorityLevel;
   created_at?: string;
   updated_at?: string;
-  // Nota: En el backend las tarjetas suelen devolver el ID del owner o nada por ahora
   owner_id?: number; 
+  owner?: BoardMember;
 }
 
 export interface Column {
@@ -66,7 +67,9 @@ export interface BoardsStore {
   addColumn: (boardId: number, column: Column) => void;
   removeColumn: (boardId: number, columnId: number) => void;
   addCard: (columnId: number, card: Card) => void;
+  updateCard: (columnId: number, cardId: number, payload: Partial<Card>) => void;
   removeCard: (columnId: number, cardId: number) => void;
   moveCard: (columnId: number, cardId: number, targetColumnId: number, newIndex: number) => void;
   addMemberToBoard: (boardId: number, member: BoardMember) => void;
+ 
 }

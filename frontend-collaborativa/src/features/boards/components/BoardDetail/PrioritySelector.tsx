@@ -1,6 +1,6 @@
-// src/features/boards/components/PrioritySelector.tsx
+
 import React from "react";
-import { PriorityLevel } from "../types/board.types";
+import { PriorityLevel } from "../../types/board.types";
 
 const priorities: { value: PriorityLevel; label: string; color: string }[] = [
   { value: "low", label: "Baja", color: "bg-emerald-100 text-emerald-700" },

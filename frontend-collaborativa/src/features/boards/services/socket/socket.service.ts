@@ -1,4 +1,3 @@
-// Definimos una interfaz para el mensaje crudo que viene del servidor
 export type RawSocketData = Record<string, unknown>;
 export type SocketListener = (data: RawSocketData) => void;
 
@@ -10,17 +9,13 @@ class SocketService {
   private isExplicitlyClosed = false;
 
   public connect(url: string): void {
-    // 1. Validar que la URL no sea nula o indefinida (evita errores de .env mal cargados)
     if (!url || url.includes('undefined')) {
-      console.error("❌ [SocketService]: URL de conexión inválida. Revisa tu .env");
       return;
     }
 
-    // 2. Evitar reconexiones innecesarias
     if (this.socket?.readyState === WebSocket.CONNECTING) return;
     if (this.socket?.readyState === WebSocket.OPEN && this.currentUrl === url) return;
 
-    // 3. Limpieza de estado previo
     this.cleanup();
     this.currentUrl = url;
     this.isExplicitlyClosed = false;
@@ -29,7 +24,6 @@ class SocketService {
       this.socket = new WebSocket(url);
 
       this.socket.onopen = () => {
-        console.log("🌐 [SocketService]: Conexión establecida exitosamente");
         if (this.reconnectTimeout) {
           clearTimeout(this.reconnectTimeout);
           this.reconnectTimeout = null;
@@ -44,15 +38,14 @@ class SocketService {
         this.handleClose(event, url);
       };
 
-      // Usamos el prefijo '_' para indicar a TS que el parámetro es ignorado intencionalmente
-      this.socket.onerror = (_error: Event) => {
+      this.socket.onerror = () => {
         if (this.socket?.readyState !== WebSocket.CLOSED) {
-          console.error("❌ [SocketService]: Error en el canal de comunicación");
+          console.error("❌ [SocketService]: Connection error");
         }
       };
       
     } catch (err) {
-      console.error("❌ [SocketService]: Fallo crítico al instanciar WebSocket", err);
+      console.error("❌ [SocketService]: Critical instantiation failure", err);
       this.scheduleReconnect(url);
     }
   }
@@ -60,27 +53,22 @@ class SocketService {
   public send<T extends object>(payload: T): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(payload));
-    } else {
-      console.warn("⚠️ [SocketService]: No se puede enviar, el socket está cerrado");
     }
   }
 
   private handleMessage(event: MessageEvent): void {
     try {
       const parsed = JSON.parse(event.data as string) as RawSocketData;
-      // Notificamos a todos los servicios suscritos (como el SocketHandler)
       this.listeners.forEach((listener) => listener(parsed));
     } catch (error) {
-      console.error("❌ [SocketService]: Error parseando JSON recibido", error);
+      console.error("❌ [SocketService]: JSON parse error", error);
     }
   }
 
   private handleClose(event: CloseEvent, url: string): void {
     this.socket = null;
     
-    // Si el cierre no fue manual, intentamos recuperar la conexión
     if (!this.isExplicitlyClosed && event.code !== 1000) {
-      console.warn(`[SocketService]: Conexión perdida (Code: ${event.code}). Reintentando en 5s...`);
       this.scheduleReconnect(url);
     }
   }
@@ -88,14 +76,12 @@ class SocketService {
   private scheduleReconnect(url: string): void {
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
     this.reconnectTimeout = setTimeout(() => {
-      console.log("🔄 [SocketService]: Intentando reconectar...");
       this.connect(url);
     }, 5000); 
   }
 
   public subscribe(listener: SocketListener): () => void {
     this.listeners.add(listener);
-    // Retornamos una función de des-suscripción para evitar memory leaks
     return () => {
       this.listeners.delete(listener);
     };
@@ -107,8 +93,8 @@ class SocketService {
     this.currentUrl = null;
     
     if (this.socket) {
-      this.socket.onclose = null; // Evitamos disparar handleClose
-      this.socket.close(1000, "Cierre normal de sesión");
+      this.socket.onclose = null; 
+      this.socket.close(1000, "Normal closure");
       this.socket = null;
     }
   }

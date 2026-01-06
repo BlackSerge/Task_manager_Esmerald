@@ -1,45 +1,42 @@
-// src/features/boards/pages/BoardsPage.tsx
-import React, { useState, useMemo, useEffect } from "react"; // ✅ Añadido useEffect
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { LayoutGrid, FolderOpen, Search, X } from "lucide-react"; 
 import { useBoards, useUpdateBoard, useDeleteBoard } from "../hooks/boardHooks";
 import { useBoardsStore } from "../store/board.store"; 
-import { BoardCard } from "../components/BoardCard";
-import { CreateBoardForm } from "../components/CreateBoardForm";
-import { BoardSkeleton } from "../components/BoardSkeleton";
+import { BoardCard } from "../components/Board/BoardCard";
+import { CreateBoardForm } from "../components/Board/CreateBoardForm";
+import { BoardSkeleton } from "../components/Board/BoardSkeleton";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 
 export const BoardsPage: React.FC = () => {
   const navigate = useNavigate();
   
-  // 1. Iniciamos la carga de datos con el hook de React Query
+  // 1. React Query como fuente de verdad fresca
   const { data: boardsData, isPending: isLoadingQuery } = useBoards();
   
-  // 2. Consumimos los datos y la acción de setBoards del Store
+  // 2. Zustand como fuente de respaldo persistida
   const boards = useBoardsStore((state) => state.boards);
-  const setBoards = useBoardsStore((state) => state.setBoards);
 
-  // 💡 SINCRONIZACIÓN CRUCIAL: 
-  // Si React Query obtiene datos, los guardamos en el Store global inmediatamente.
-  useEffect(() => {
-    if (boardsData) {
-      setBoards(boardsData);
-    }
-  }, [boardsData, setBoards]);
-  
   const deleteMutation = useDeleteBoard();
   const updateMutation = useUpdateBoard();
 
-  // --- LÓGICA DE BÚSQUEDA ---
+  // --- LÓGICA DE BÚSQUEDA Y FILTRADO ---
   const [searchTerm, setSearchTerm] = useState("");
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; title: string } | null>(null);
 
-  // Filtramos usando el array del Store (que ahora se actualiza vía useEffect)
+  /**
+   * 💡 SINCRONIZACIÓN REACTIVA:
+   * Priorizamos 'boardsData' porque viene directamente de React Query.
+   * Si 'boardsData' cambia (debido a un invalidateQueries en el detalle), 
+   * 'filteredBoards' se recalculará automáticamente sin esperar a un useEffect.
+   */
   const filteredBoards = useMemo(() => {
-    return boards.filter((board) =>
+    const sourceOfTruth = boardsData && boardsData.length > 0 ? boardsData : boards;
+    
+    return sourceOfTruth.filter((board) =>
       board.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [boards, searchTerm]);
+  }, [boardsData, boards, searchTerm]);
 
   const handleBoardClick = (id: number | string): void => {
     navigate(`/boards/${id}`);
@@ -62,9 +59,8 @@ export const BoardsPage: React.FC = () => {
     }
   };
 
-  // Combinamos estados de carga para evitar parpadeos
-  // Si la query está cargando y no tenemos boards en el store, mostramos skeleton
-  const isLoading = isLoadingQuery && boards.length === 0;
+  // Solo mostramos skeleton si no hay NADA (ni en caché ni en store)
+  const isLoading = isLoadingQuery && filteredBoards.length === 0;
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 animate-in fade-in duration-500">
@@ -82,7 +78,6 @@ export const BoardsPage: React.FC = () => {
             </p>
           </div>
 
-          {/* 🔍 BARRA DE BÚSQUEDA INTEGRADA */}
           <div className="relative max-w-md group ml-8">
             <Search 
               className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 group-focus-within:text-emerald-600 transition-colors" 
@@ -125,7 +120,6 @@ export const BoardsPage: React.FC = () => {
             />
           ))}
 
-          {/* ESTADOS VACÍOS (Datos reales vs Búsqueda) */}
           {filteredBoards.length === 0 && (
             <div className="col-span-full py-20 bg-emerald-50/30 border-2 border-dashed border-emerald-200 rounded-[3rem] text-center flex flex-col items-center">
               <FolderOpen className="w-12 h-12 text-emerald-200 mb-4" />

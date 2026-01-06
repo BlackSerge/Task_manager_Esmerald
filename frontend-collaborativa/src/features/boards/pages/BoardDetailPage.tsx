@@ -10,8 +10,8 @@ import { useBoardsStore } from "@/features/boards/store/board.store";
 import { useSocketSync } from "@/features/boards/hooks/useSocketSync";
 import { useBoardDetail } from "../hooks/useBoards";
 import { useBoardDragAndDrop } from "../hooks/useBoardDragAndDrop";
-import { CreateColumnForm } from "../components/CreateColumnForm";
-import { ColumnList } from "../components/ColumnList";
+import { CreateColumnForm } from "../components/BoardDetail/CreateColumnForm";
+import { ColumnList } from "../components/BoardDetail/ColumnList";
 import { ChatPanel } from "@/features/chat/components/ChatPanel";
 
 const containerVariants: Variants = {

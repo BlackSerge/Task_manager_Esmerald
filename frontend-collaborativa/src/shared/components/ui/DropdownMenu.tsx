@@ -19,9 +19,10 @@ export interface DropdownOption {
 interface Props {
   options: DropdownOption[];
   triggerClassName?: string;
+  children?: React.ReactNode; // 👈 Añadido para trigger personalizado
 }
 
-export const DropdownMenu: React.FC<Props> = ({ options, triggerClassName }) => {
+export const DropdownMenu: React.FC<Props> = ({ options, triggerClassName, children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingOption, setPendingOption] = useState<DropdownOption | null>(null);
@@ -49,12 +50,16 @@ export const DropdownMenu: React.FC<Props> = ({ options, triggerClassName }) => 
   return (
     <>
       <div className="relative" ref={menuRef}>
-        <button
+        <div 
           onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-          className={`p-2 rounded-full transition-all active:scale-90 ${triggerClassName}`}
+          className="cursor-pointer"
         >
-          <MoreVertical size={20} />
-        </button>
+          {children || (
+            <button className={`p-2 rounded-full transition-all active:scale-90 ${triggerClassName}`}>
+              <MoreVertical size={20} />
+            </button>
+          )}
+        </div>
 
         {isOpen && (
           <div className="absolute right-0 mt-2 w-48 bg-white border border-emerald-100 rounded-2xl shadow-2xl py-2 z-[110] animate-in fade-in zoom-in duration-200">
@@ -72,14 +77,10 @@ export const DropdownMenu: React.FC<Props> = ({ options, triggerClassName }) => 
         )}
       </div>
 
-      {/* Renderizado fuera del flujo del menú para opacidad total */}
       {pendingOption && showConfirm && (
         <ConfirmModal
           isOpen={showConfirm}
-          onClose={() => {
-            setShowConfirm(false);
-            setPendingOption(null);
-          }}
+          onClose={() => { setShowConfirm(false); setPendingOption(null); }}
           onConfirm={() => {
             pendingOption.onClick();
             setShowConfirm(false);

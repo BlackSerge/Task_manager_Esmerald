@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreateBoard, boardKeys } from "../hooks/useBoards"; // ✅ Importación corregida
+import { useCreateBoard, boardKeys } from "../../hooks/useBoards"; 
 
 export const CreateBoardForm: React.FC = () => {
   const [title, setTitle] = useState("");
@@ -17,8 +17,7 @@ export const CreateBoardForm: React.FC = () => {
     mutate(trimmedTitle, { 
       onSuccess: () => {
         setTitle("");
-        // ✅ Sincronización perfecta:
-        // Invalidamos 'all' para que cualquier componente que escuche tableros se actualice
+       
         queryClient.invalidateQueries({ queryKey: boardKeys.all });
       },
       onError: (error) => {
@@ -32,7 +31,7 @@ export const CreateBoardForm: React.FC = () => {
       <div className="relative flex-1 group">
         <input
           type="text"
-          placeholder="Nombre del nuevo proyecto (ej: Marketing 2026)..."
+          placeholder="Nuevo Proyecto "
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           disabled={isPending}

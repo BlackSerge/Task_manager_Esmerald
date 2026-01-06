@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { Layout, CheckSquare, Clock, ArrowRight, Edit2, Trash2 } from "lucide-react";
-import { Board, BoardMember } from "../types/board.types";
+import { Board, BoardMember } from "../../types/board.types";
 import { formatDate } from "@/shared/utils/date.utils";
 import { DropdownMenu } from "@/shared/components/ui/DropdownMenu";
-import { EditableEntity } from "./EditableEntity"; 
-import { usePermissions } from "../hooks/usePermissions";
+import { EditableEntity } from "../EditableEntity"; 
+import { usePermissions } from "../../hooks/usePermissions";
 
 interface BoardCardProps {
   board: Board;

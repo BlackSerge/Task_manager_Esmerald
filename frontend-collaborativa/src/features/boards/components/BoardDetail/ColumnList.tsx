@@ -1,15 +1,15 @@
 import React, { useState, useMemo } from "react";
 import { Plus, Edit2, Trash2, Loader2, Lock } from "lucide-react";
 
-import { Column, Board } from "../types/board.types";
-import { EditableEntity } from "./EditableEntity";
-import { TaskModal } from "./BoardDetail/TaskModal";
+import { Column, Board, Card } from "../../types/board.types"; // Añadimos Card
+import { EditableEntity } from "../EditableEntity";
+import { TaskModal } from "./TaskModal";
 import { DropdownMenu } from "@/shared/components/ui/DropdownMenu";
 import { DroppableWrapper } from "@/shared/components/dnd/DroppableWrapper";
 import { CardItem } from "./CardItem"; 
-import { useColumnActions, CreateCardDTO } from "../hooks/useColumnActions";
+import { useColumnActions, CreateCardDTO } from "../../hooks/useColumnActions";
 import { getColumnStatusConfig } from "@/shared/utils/column.utils";
-import { usePermissions } from "../hooks/usePermissions";
+import { usePermissions } from "../../hooks/usePermissions";
 
 interface Props {
   column: Column;
@@ -22,10 +22,18 @@ export const ColumnList: React.FC<Props> = ({ column, board, index, totalColumns
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
-  // 1. Permisos estrictos: Solo lo que esta columna necesita saber
   const { canEdit, canDelete, role, isLoading: isLoadingPermissions } = usePermissions(board);
   const { isCreatingCard, ...actions } = useColumnActions(board.id.toString(), column.id);
   const config = getColumnStatusConfig(column.title, index, totalColumns);
+
+
+  const handleUpdateCard = (cardId: number, payload: Partial<Card> | string) => {
+    if (typeof payload === "string") {
+      actions.updateCard(cardId, { title: payload });
+    } else {
+      actions.updateCard(cardId, payload);
+    }
+  };
 
   const menuOptions = useMemo(() => [
     ...(canEdit ? [{ 
@@ -81,13 +89,14 @@ export const ColumnList: React.FC<Props> = ({ column, board, index, totalColumns
               index={cardIndex}
               isColumnDone={config.isDone}
               onDelete={canDelete ? () => actions.deleteCard(card.id) : undefined}
-              onUpdate={canEdit ? (newTitle) => actions.updateCard(card.id, newTitle) : undefined}
+              // 🚀 Refactorizado para aceptar el payload completo (objeto)
+              onUpdate={canEdit ? (payload) => handleUpdateCard(card.id, payload) : undefined}
             />
           ))}
         </div>
       </DroppableWrapper>
 
-      {/* Footer: Botón Nueva Tarea condicional */}
+      {/* Footer: Botón Nueva Tarea */}
       <div className="mt-4 px-1">
         {isLoadingPermissions ? (
           <div className="w-full py-4 bg-slate-200/20 animate-pulse rounded-[1.8rem]" />

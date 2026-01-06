@@ -9,48 +9,50 @@ import {
 import { socketService } from "@/features/boards/services/socket/socket.service";
 import { Card } from "../types/board.types";
 
-/**
- * Interface local: Solo se usa en este hook para la creación de tarjetas.
- * Mantiene el tipado estricto basado en la entidad Card sin ensuciar types.ts
- */
 export interface CreateCardDTO extends Pick<Card, 'title' | 'priority'> {
   description?: string; 
 }
 
 export const useColumnActions = (boardId: string, columnId: number) => {
+  // Convertimos a número una sola vez para limpieza
+  const bId = Number(boardId);
+
   const { mutate: deleteColumn } = useDeleteColumn();
   const { mutate: updateColumn } = useUpdateColumn();
   const { mutate: deleteCard } = useDeleteCard();
-  const { mutate: updateCard } = useUpdateCard();
+  const { mutate: updateCard } = useUpdateCard(bId); // Pasamos el bId al hook si es necesario
   const { mutate: createCard, isPending: isCreatingCard } = useCreateCard();
 
   return {
     isCreatingCard,
 
     deleteColumn: () => 
-      deleteColumn({ boardId: Number(boardId), columnId }),
+      deleteColumn({ boardId: bId, columnId }),
     
     updateColumn: (title: string) => {
-      updateColumn({ boardId: Number(boardId), columnId, title });
+      updateColumn({ boardId: bId, columnId, title });
       socketService.send({ 
         type: "COLUMN_UPDATED", 
         payload: { columnId, title } 
       });
     },
 
+ 
     deleteCard: (cardId: number) => 
-      deleteCard({ columnId, cardId }),
+      deleteCard({ boardId: bId, columnId, cardId }),
 
-    updateCard: (cardId: number, title: string) => 
+    updateCard: (cardId: number, payload: Partial<Card>) => 
       updateCard({ 
-        boardId: Number(boardId), 
+        boardId: bId, 
         cardId, 
-        payload: { title } 
+        payload 
       }),
 
+  
     createCard: (data: CreateCardDTO, onSuccess: () => void) => {
       createCard(
         { 
+          boardId: bId, 
           columnId, 
           title: data.title, 
           description: data.description ?? "", 
