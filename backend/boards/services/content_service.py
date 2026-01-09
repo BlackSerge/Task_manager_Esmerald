@@ -32,11 +32,13 @@ def _validate_permission(board: Board, user: AbstractBaseUser, min_role: str = '
 
 def _touch_board(board: Board) -> None:
     """
-    Actualiza el timestamp del tablero para que el frontend 
-    sepa que hubo actividad reciente.
+    Actualiza el campo manual 'last_activity' del tablero para que el frontend 
+    muestre actividad real, evitando falsos positivos de 'ahora mismo' al solo leer.
     """
-    board.updated_at = timezone.now()
-    board.save(update_fields=['updated_at'])
+    board.last_activity = timezone.now()
+    # Usamos update_fields para evitar disparar el auto_now de updated_at
+    # y mantener la integridad del timestamp técnico.
+    board.save(update_fields=['last_activity'])
 
 
 # --- Servicios de Tablero ---
@@ -81,7 +83,7 @@ def create_column(*, board_id: int, title: str, user: AbstractBaseUser) -> Colum
             order=(last_order or 0.0) + 1.0
         )
         
-        _touch_board(board) # Actualiza 'last_activity'
+        _touch_board(board) # Actualiza la actividad real
 
     notify_board_change(board_id=board_id)
     return cast(Column, column)
@@ -116,7 +118,7 @@ def create_card(
             order=(last_order or 0.0) + 1.0
         )
         
-        _touch_board(board) # Importante para que el dashboard se refresque
+        _touch_board(board) # Marcamos actividad real en el tablero
 
     notify_board_change(board_id=board.id)
     return cast(Card, card)
@@ -132,7 +134,6 @@ def move_card(
     """
     Actualiza la posición y/o columna de una tarjeta.
     """
-    # Select related para evitar múltiples consultas al validar
     card = get_object_or_404(Card.objects.select_related('column__board'), pk=card_id)
     board = card.column.board
     
@@ -145,7 +146,7 @@ def move_card(
         card.order = new_order
         card.save()
         
-        _touch_board(board) # El movimiento de tarjeta cuenta como actividad
+        _touch_board(board) # El movimiento es una acción de contenido real
 
     notify_card_movement(
         board_id=board.id,

@@ -92,18 +92,13 @@ class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
     """
     
     owner = UserMinimalSerializer(read_only=True)
-    # Cambiamos a 'members' a través de la relación ManyToMany para simplificar
     members = UserMinimalSerializer(many=True, read_only=True)
     current_user_role = serializers.SerializerMethodField()
-    
-    # Conectamos directamente con las @property del modelo usando 'source'
     columns_count = serializers.IntegerField(source='columns.count', read_only=True)
     total_cards = serializers.IntegerField(source='total_cards_count', read_only=True)
     completed_cards = serializers.IntegerField(source='completed_cards_count', read_only=True)
     progress_percentage = serializers.IntegerField(read_only=True)
-    
-    # Mapeo de actividad reciente
-    last_activity = serializers.DateTimeField(source='updated_at', read_only=True)
+    last_activity = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Board
@@ -146,13 +141,21 @@ class BoardDetailSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin
     members = BoardMemberSerializer(source='boardmember_set', many=True, read_only=True)
     current_user_role = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
+    last_activity = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Board
         fields = (
-            "id", "title", "owner", "columns", "members", 
-            "current_user_role", "progress_percentage", 
-            "created_at", "updated_at"
+            "id", 
+            "title", 
+            "owner", 
+            "columns", 
+            "members", 
+            "current_user_role",
+            "progress_percentage", 
+            "last_activity",
+            "created_at", 
+            "updated_at"
         )
     
     def get_current_user_role(self, obj: Board) -> str:

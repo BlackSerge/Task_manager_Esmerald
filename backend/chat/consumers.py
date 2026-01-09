@@ -20,7 +20,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
         await self.accept()
 
-    async def disconnect(self, close_code):
+    async def disconnect(self):
         await self.channel_layer.group_discard(
             self.group_name,
             self.channel_name
