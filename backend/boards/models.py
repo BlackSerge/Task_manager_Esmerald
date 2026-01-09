@@ -20,9 +20,10 @@ class Board(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_activity = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-updated_at"]
+        ordering = ["-last_activity"]
         verbose_name = "Tablero"
 
     def __str__(self) -> str:
