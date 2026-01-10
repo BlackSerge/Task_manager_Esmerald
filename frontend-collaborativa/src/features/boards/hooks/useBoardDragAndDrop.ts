@@ -1,22 +1,22 @@
 import { DropResult } from "@hello-pangea/dnd";
 import { useBoardsStore } from "../store/board.store";
-import { useMoveCardMutation } from "./useMoveCardMutation.ts";
+import { useCardActions } from "./useCardActions";
 import { confettiService } from "@/shared/services/confetti.service";
 import { Board } from "../types/board.types";
 
 /**
  * Hook de orquestación para el Drag and Drop.
- * Normalizamos el boardId como string para ser consistentes con los hooks de React Query.
  */
 export const useBoardDragAndDrop = (boardId: string | undefined) => {
-  const queryClient = useMoveCardMutation(boardId || "");
-  const { mutate: moveCard } = queryClient;
+  
+  const { moveCard } = useCardActions(boardId);
   
   const boards = useBoardsStore((state) => state.boards);
 
   const handleDragEnd = (result: DropResult): void => {
     const { destination, source, draggableId } = result;
 
+    // 1. Validaciones básicas
     if (!destination || !boardId) return;
     
     if (
@@ -24,18 +24,20 @@ export const useBoardDragAndDrop = (boardId: string | undefined) => {
       destination.index === source.index 
     ) return;
 
-    // Ejecutamos la mutación (conversión segura a número aquí)
+    // 2. EJECUCIÓN DE LA ACCIÓN
+    // Los nombres de las propiedades coinciden con el objeto que espera moveCardMutation
     moveCard({
       cardId: Number(draggableId),
+      fromColumnId: Number(source.droppableId),
       columnId: Number(destination.droppableId),
       order: destination.index
     });
 
+    // 3. Celebración
     checkCelebration(destination.droppableId);
   };
 
   const checkCelebration = (targetDroppableId: string): void => {
-    // Buscamos el board comparando strings para evitar errores de tipo
     const currentBoard = boards.find((b) => String(b.id) === String(boardId)) as Board | undefined;
 
     if (currentBoard?.columns) {

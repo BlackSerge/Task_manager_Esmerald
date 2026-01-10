@@ -36,7 +36,7 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
         # Snapshot inicial
         await self.send_board_state()
 
-    async def disconnect(self: int) -> None:
+    async def disconnect(self, close_code: int) -> None: # Corregido el argumento self: int
         """Limpieza de canales al desconectar."""
         if hasattr(self, 'group_name'):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
@@ -50,7 +50,6 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
 
         try:
             if msg_type == "card.move":
-                # Delegamos al service que ya tiene la lógica de validación y notificación
                 await database_sync_to_async(content_service.move_card)(
                     card_id=int(payload["card_id"]),
                     new_column_id=int(payload["new_column_id"]),
@@ -67,7 +66,7 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
 
         except Exception as e:
             logger.error(f"WebSocket Error [{msg_type}]: {str(e)}")
-            await self.send_json({"type": "ERROR", "message": "Error al procesar la acción"})
+            await self.send_json({"type": "ERROR", "message": str(e)})
 
     # --- Handlers de Eventos (Broadcast recibidos de Redis) ---
 
@@ -78,8 +77,11 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
             "payload": event["payload"]
         })
 
-    async def board_broadcast_state(self: Dict[str, Any]) -> None:
-        """Forzar actualización completa del tablero."""
+    async def board_broadcast_state(self, event: Dict[str, Any]) -> None:
+        """
+        Handler para el evento 'board.broadcast_state'.
+        Se dispara cuando notify_board_change() es llamado en el service.
+        """
         await self.send_board_state()
 
     async def send_board_state(self) -> None:
@@ -94,11 +96,13 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def get_board_snapshot(self) -> Optional[Dict[str, Any]]:
         """
-        Usa el Selector que ya optimizamos con prefetch_related.
+        Obtiene el snapshot del tablero inyectando el usuario en el contexto
+        para que el Serializer calcule correctamente el rol (admin/editor/viewer).
         """
-        # Usamos el selector que ya valida permisos y optimiza DB
         board = selectors.board_detail_get(user=self.user, board_id=self.board_id)
         if not board:
             return None
-            
-        return cast(Dict[str, Any], BoardDetailSerializer(board).data)
+        
+        
+        serializer = BoardDetailSerializer(board, context={'user': self.user})
+        return cast(Dict[str, Any], serializer.data)

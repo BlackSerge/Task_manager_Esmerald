@@ -35,7 +35,7 @@ export const useBoardTeam = (boardId: string | undefined) => {
       return boardMembersService.invite(Number(boardId), payload);
     },
     onSuccess: () => {
-      // Invalida tanto la lista de tableros como el detalle actual
+      
       queryClient.invalidateQueries({ queryKey: boardKeys.all });
       if (boardId) {
         queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });

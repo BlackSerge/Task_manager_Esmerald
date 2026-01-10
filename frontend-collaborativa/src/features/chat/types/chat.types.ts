@@ -1,12 +1,15 @@
-// src/features/chat/types/chat.types.ts
 export interface Message {
   id: number;
-  username: string; // "user" en el broadcast del consumer
+  username: string;
   content: string;
   created_at: string;
   edited_at: string | null;
 }
 
-export interface ChatEvent extends Message {
+export interface ChatEvent {
   type: "broadcast_message";
+  id: number;
+  user: string;    
+  content: string; 
+  created_at: string;
 }

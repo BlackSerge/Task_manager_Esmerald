@@ -1,13 +1,12 @@
-// src/features/chat/store/chat.store.ts
 import { create } from 'zustand';
-import { Message } from '../types/chat.types';
+import { Message, ChatEvent } from '../types/chat.types';
 import { chatService } from '../services/chat.service';
 
 interface ChatState {
   messages: Message[];
   isConnected: boolean;
   isLoading: boolean;
-  initChat: (boardId: string) => Promise<void>; // Nueva acción orquestadora
+  initChat: (boardId: string) => Promise<void>;
   disconnect: () => void;
   sendMessage: (content: string) => void;
 }
@@ -21,26 +20,36 @@ export const useChatStore = create<ChatState>((set) => ({
     set({ isLoading: true });
     
     try {
-      // 1. Persistencia: Cargar mensajes antiguos de la DB
+      // 1. Historial (Usa MessageSerializer -> username y content)
       const history = await chatService.getMessages(boardId);
       set({ messages: history });
 
-      // 2. Tiempo Real: Conectar para nuevos mensajes
+      // 2. Tiempo Real (Usa Consumer -> user y content)
       chatService.connect(
         boardId,
-        (event) => {
+        (event: ChatEvent) => {
           if (event.type === "broadcast_message") {
-            set((state) => ({
-              messages: state.messages.some(m => m.id === event.id) 
-                ? state.messages 
-                : [...state.messages, event]
-            }));
+            set((state) => {
+              if (state.messages.some(m => m.id === event.id)) return state;
+
+              const normalizedMessage: Message = {
+                id: event.id,
+                username: event.user,    
+                content: event.content,  
+                created_at: event.created_at,
+                edited_at: null
+              };
+
+              return {
+                messages: [...state.messages, normalizedMessage]
+              };
+            });
           }
         },
         (status) => set({ isConnected: status })
       );
-    } catch (error) {
-      console.error("Error initializing chat:", error);
+    } catch {
+      // Catch vacío para TS Estricto
     } finally {
       set({ isLoading: false });
     }
@@ -51,5 +60,7 @@ export const useChatStore = create<ChatState>((set) => ({
     set({ isConnected: false, messages: [], isLoading: false });
   },
 
-  sendMessage: (content) => chatService.send(content)
+  sendMessage: (content: string) => {
+    if (content.trim()) chatService.send(content);
+  }
 }));

@@ -1,16 +1,15 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { 
-  Edit2, Trash2, CheckCircle2, Circle, 
+  Trash2, CheckCircle2, Circle, 
   ShieldCheck, ShieldAlert, User, AlignLeft, ChevronRight 
 } from "lucide-react";
 
 import { Card, BoardMember, PriorityLevel, CreateCardPayload } from "../../types/board.types";
 import { DraggableWrapper } from "@/shared/components/dnd/DraggableWrapper";
-import { EditableEntity } from "../EditableEntity";
 import { PriorityBadge } from "../Board/PriorityBadge";
 import { DateDisplay } from "@/shared/components/ui/DateDisplay";
 import { DropdownMenu, DropdownOption } from "@/shared/components/ui/DropdownMenu";
-import { TaskModal } from "../BoardDetail/TaskModal";
+import { TaskModal } from "./CardModal";
 
 interface CardItemProps {
   card: Card;
@@ -24,9 +23,8 @@ export const CardItem: React.FC<CardItemProps> = ({
   card, index, isColumnDone, onDelete, onUpdate 
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
 
-  // Derivamos el estado de completado: si la card lo dice O si la columna es "Done"
+  // Derivamos el estado de completado
   const effectiveIsCompleted = card.is_completed || isColumnDone;
 
   const handleToggleComplete = useCallback((e: React.MouseEvent) => {
@@ -49,8 +47,8 @@ export const CardItem: React.FC<CardItemProps> = ({
     { label: "Alta", icon: <ChevronRight size={14} />, onClick: () => handleUpdatePriority('high') },
   ], [handleUpdatePriority]);
 
+  // Se eliminó "Editar Título" para evitar redundancia
   const menuOptions: DropdownOption[] = useMemo(() => [
-    { label: "Editar Título", icon: <Edit2 size={14} />, onClick: () => setIsEditingTitle(true) },
     { label: "Editar Detalles", icon: <AlignLeft size={14} />, onClick: () => setIsModalOpen(true) },
     ...(onDelete ? [{ label: "Eliminar", icon: <Trash2 size={14} />, variant: "danger" as const, onClick: onDelete }] : [])
   ], [onDelete]);
@@ -102,23 +100,21 @@ export const CardItem: React.FC<CardItemProps> = ({
                  </DropdownMenu>
               </div>
               
-              {!isEditingTitle && (
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <DropdownMenu options={menuOptions} />
-                </div>
-              )}
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <DropdownMenu options={menuOptions} />
+              </div>
             </div>
 
             <div className="px-1">
-              <EditableEntity
-                initialValue={card.title}
-                isEditing={isEditingTitle}
-                onSave={(val) => { onUpdate?.({ title: val }); setIsEditingTitle(false); }}
-                onCancel={() => setIsEditingTitle(false)}
-                className={`text-[14px] font-black leading-snug block mb-2 tracking-tight
+              {/* Título: Ahora es un elemento estático que abre el modal al hacer clic */}
+              <h3 
+                onClick={() => setIsModalOpen(true)}
+                className={`text-[14px] font-black leading-snug block mb-2 tracking-tight cursor-pointer hover:text-emerald-700 transition-colors
                   ${effectiveIsCompleted ? "text-slate-400 line-through decoration-slate-300" : "text-emerald-950"}
                 `}
-              />
+              >
+                {card.title}
+              </h3>
 
               <div 
                 className={`mt-2 text-[11.5px] leading-relaxed font-medium mb-3 block cursor-pointer hover:bg-emerald-50/60 rounded-xl p-2 transition-all border border-transparent hover:border-emerald-100/50

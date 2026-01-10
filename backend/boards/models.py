@@ -31,11 +31,7 @@ class Board(models.Model):
 
     # --- Lógica de Negocio Computada (Clean Code) ---
 
-    @property
-    def total_cards_count(self) -> int:
-        """Retorna el número total de tarjetas en todas las columnas."""
-        return Card.objects.filter(column__board=self).count()
-
+   
     @property
     def completed_cards_count(self) -> int:
         """
@@ -47,13 +43,9 @@ class Board(models.Model):
         return last_column.cards.count()
 
     @property
-    def progress_percentage(self) -> int:
-        """Cálculo de progreso para la barra del BoardCard."""
-        total = self.total_cards_count
-        if total == 0:
-            return 0
-        return int((self.completed_cards_count / total) * 100)
-
+    def last_column(self):
+        """Retorna la columna que representa el estado final."""
+        return self.columns.only('id').last()
 
 class BoardMember(models.Model):
     """Gestión de permisos (RBAC)."""
@@ -63,6 +55,7 @@ class BoardMember(models.Model):
         VIEWER = 'viewer', 'Observador'
 
     board = models.ForeignKey(Board, on_delete=models.CASCADE)
+    related_name='memberships'
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     role = models.CharField(
         max_length=10,

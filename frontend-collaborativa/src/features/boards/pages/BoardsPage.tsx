@@ -5,16 +5,18 @@ import { useBoards, useUpdateBoard, useDeleteBoard } from "../hooks/boardHooks";
 import { useBoardsStore } from "../store/board.store"; 
 import { BoardCard } from "../components/Board/BoardCard";
 import { CreateBoardForm } from "../components/Board/CreateBoardForm";
-import { BoardSkeleton } from "../components/Board/BoardSkeleton";
+import { BoardListSkeleton } from "../components/Board/BoardListSkeleton";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 
 export const BoardsPage: React.FC = () => {
   const navigate = useNavigate();
   
-  // 1. React Query como fuente de verdad fresca
-  const { data: boardsData, isPending: isLoadingQuery } = useBoards();
+  // 1. React Query: Maneja la petición, pero el Store maneja los datos.
+  const { isPending: isLoadingQuery } = useBoards();
   
-  // 2. Zustand como fuente de respaldo persistida
+  // 2. Zustand: Única fuente de verdad para la UI.
+  // Al estar suscrito a 'boards', cualquier cambio en el store (orden, métricas) 
+  // provocará un re-render automático y correcto.
   const boards = useBoardsStore((state) => state.boards);
 
   const deleteMutation = useDeleteBoard();
@@ -24,19 +26,12 @@ export const BoardsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; title: string } | null>(null);
 
-  /**
-   * 💡 SINCRONIZACIÓN REACTIVA:
-   * Priorizamos 'boardsData' porque viene directamente de React Query.
-   * Si 'boardsData' cambia (debido a un invalidateQueries en el detalle), 
-   * 'filteredBoards' se recalculará automáticamente sin esperar a un useEffect.
-   */
   const filteredBoards = useMemo(() => {
-    const sourceOfTruth = boardsData && boardsData.length > 0 ? boardsData : boards;
-    
-    return sourceOfTruth.filter((board) =>
+    // Ya no dependemos de boardsData aquí, usamos 'boards' que ya pasó por el transformador de métricas
+    return boards.filter((board) =>
       board.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [boardsData, boards, searchTerm]);
+  }, [boards, searchTerm]);
 
   const handleBoardClick = (id: number | string): void => {
     navigate(`/boards/${id}`);
@@ -59,8 +54,8 @@ export const BoardsPage: React.FC = () => {
     }
   };
 
-  // Solo mostramos skeleton si no hay NADA (ni en caché ni en store)
-  const isLoading = isLoadingQuery && filteredBoards.length === 0;
+  // Solo mostramos skeleton si no hay datos en el store y la query está cargando
+  const isLoading = isLoadingQuery && boards.length === 0;
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 animate-in fade-in duration-500">
@@ -107,7 +102,7 @@ export const BoardsPage: React.FC = () => {
       </header>
 
       {isLoading ? (
-        <BoardSkeleton />
+        <BoardListSkeleton />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredBoards.map((board) => (

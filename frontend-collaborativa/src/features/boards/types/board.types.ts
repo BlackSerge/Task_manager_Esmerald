@@ -1,5 +1,16 @@
+
 export type PriorityLevel = 'low' | 'medium' | 'high'; 
 export type UserRole = 'admin' | 'editor' | 'viewer';
+
+export interface BoardMember {
+  user: {
+    id: number;
+    username: string;
+    email: string;
+  };
+  role: UserRole;
+  joined_at: string;
+}
 
 export interface Card {
   id: number;
@@ -32,31 +43,23 @@ export interface Board {
   owner: BoardMember['user']; 
   owner_id?: number; 
   members: BoardMember[]; 
-  total_cards?: number;
-  completed_cards?: number;
-  progress_percentage?: number;
+  total_cards: number;
+  completed_cards: number;
+  progress_percentage: number;
   last_activity?: string;
   created_at: string;
   updated_at: string;
 }
 
-
-export interface BoardMember {
-  user: {
-    id: number;
-    username: string;
-    email: string;
-  };
-  role: UserRole;
-  joined_at: string;
-}
-
+/**
+ * DATA TRANSFER OBJECTS (DTOs) / PAYLOADS
+ * Representan la estructura de los datos para las peticiones HTTP.
+ */
 
 export interface InviteMemberDto {
   user_id: number;
   role?: UserRole;
 }
-
 
 export interface CreateCardPayload {
   title: string;
@@ -64,19 +67,8 @@ export interface CreateCardPayload {
   priority: PriorityLevel;
 }
 
-export interface BoardsStore {
-  boards: Board[];
-  isLoading: boolean;
-  error: string | null;
-  setBoards: (boards: Board[]) => void;
-  updateBoard: (updatedBoard: Board) => void;
-  addBoard: (board: Board) => void;
-  addColumn: (boardId: number, column: Column) => void;
-  removeColumn: (boardId: number, columnId: number) => void;
-  addCard: (columnId: number, card: Card) => void;
-  updateCard: (columnId: number, cardId: number, payload: Partial<Card>) => void;
-  removeCard: (columnId: number, cardId: number) => void;
-  moveCard: (columnId: number, cardId: number, targetColumnId: number, newIndex: number) => void;
-  addMemberToBoard: (boardId: number, member: BoardMember) => void;
- 
+export interface MoveCardPayload {
+  cardId: number;
+  columnId: number;
+  order: number;
 }

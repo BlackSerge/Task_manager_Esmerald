@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { Plus, Loader2, Lock, Edit2, Trash2 } from "lucide-react"; // Importamos iconos faltantes
+import { Plus, Loader2, Lock, Edit2, Trash2 } from "lucide-react";
 
 import { Column, Board, Card, CreateCardPayload } from "../../types/board.types";
 import { EditableEntity } from "../EditableEntity";
-import { TaskModal } from "./TaskModal";
+import { TaskModal } from "./CardModal";
 import { DropdownMenu } from "@/shared/components/ui/DropdownMenu";
 import { DroppableWrapper } from "@/shared/components/dnd/DroppableWrapper";
 import { CardItem } from "./CardItem"; 
@@ -36,16 +36,17 @@ export const ColumnList: React.FC<Props> = ({ column, board, index, totalColumns
     deleteCard({ columnId: column.id, cardId });
   }, [column.id, deleteCard]);
 
+  // Manejador actualizado para persistir el cambio de título en el backend
   const handleUpdateColumnTitle = useCallback((val: string) => {
     updateColumn({ columnId: column.id, title: val });
     setIsEditingTitle(false);
   }, [column.id, updateColumn]);
 
+  // Manejador actualizado para eliminar la columna
   const handleRemoveColumn = useCallback(() => {
     removeColumn(column.id);
   }, [column.id, removeColumn]);
 
-  // Tipado estricto para la creación
   const handleCreateCard = useCallback((data: CreateCardPayload) => {
     addCard({ ...data, columnId: column.id });
     setIsModalOpen(false);
@@ -61,7 +62,7 @@ export const ColumnList: React.FC<Props> = ({ column, board, index, totalColumns
       label: "Eliminar lista", 
       icon: <Trash2 size={14} />, 
       variant: "danger" as const, 
-      requiresConfirmation: true,
+      requiresConfirmation: true, // El DropdownMenu manejará la confirmación si está implementado
       onClick: handleRemoveColumn 
     }] : [])
   ], [canEdit, canDelete, handleRemoveColumn]);

@@ -1,18 +1,61 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { BoardsStore, Board, Column, Card, BoardMember } from "../types/board.types";
+import { Board, Column, Card, BoardMember } from "../types/board.types";
 
+// --- Helpers de Cálculo ---
 
 const calculateBoardMetrics = (columns: Column[]) => {
+  // Manejo de estado inicial o vacío
+  if (!columns || columns.length === 0) {
+    return { 
+      total_cards: 0, 
+      completed_cards: 0, 
+      progress_percentage: 0, 
+      columns_count: 0 
+    };
+  }
+
+  // Obtenemos todas las tarjetas de todas las secciones (columnas)
   const allCards = columns.flatMap((col) => col.cards || []);
   const total = allCards.length;
-  const completed = allCards.filter((card) => card.is_completed).length;
+
+  // Determinamos cuál es la última sección basándonos en el campo 'order'
+  const sortedColumns = [...columns].sort((a, b) => Number(a.order) - Number(b.order));
+  const lastColumnId = sortedColumns[sortedColumns.length - 1]?.id;
+  
+  
+  const completed = allCards.filter((card) => {
+    const isInLastColumn = lastColumnId !== undefined && String(card.column) === String(lastColumnId);
+    return card.is_completed || isInLastColumn;
+  }).length;
+
   return {
     total_cards: total,
     completed_cards: completed,
     progress_percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+    columns_count: columns.length
   };
 };
+
+// --- Store ---
+
+export interface BoardsStore {
+  boards: Board[];
+  isLoading: boolean;
+  error: string | null;
+  setBoards: (boards: Board[]) => void;
+  updateBoard: (updatedBoard: Board) => void;
+  addBoard: (board: Board) => void;
+  addColumn: (boardId: number, column: Column) => void;
+  updateColumn: (boardId: number, columnId: number, payload: Partial<Column>) => void;
+  removeColumn: (boardId: number, columnId: number) => void;
+  addCard: (columnId: number, card: Card) => void;
+  updateCard: (columnId: number, cardId: number, payload: Partial<Card>) => void;
+  removeCard: (columnId: number, cardId: number) => void;
+  moveCard: (fromColumnId: number, cardId: number, toColumnId: number, newIndex: number) => void;
+  addMemberToBoard: (boardId: number, member: BoardMember) => void;
+  syncBoardMetrics: (boardId: number) => void; 
+}
 
 export const useBoardsStore = create<BoardsStore>()(
   persist(
@@ -21,185 +64,137 @@ export const useBoardsStore = create<BoardsStore>()(
       isLoading: true,
       error: null,
 
-      setBoards: (boards) => set({ boards, isLoading: false, error: null }),
+    setBoards: (newBoards) => set((state) => {
+  const updatedBoards = newBoards.map(nb => {
+    const existingBoard = state.boards.find(b => Number(b.id) === Number(nb.id));
+    const hasNewColumns = nb.columns && nb.columns.length > 0;
+    const finalColumns = hasNewColumns ? nb.columns : (existingBoard?.columns || []);
 
+    return {
+      ...nb,
+      columns: finalColumns,
+      ...calculateBoardMetrics(finalColumns) // Recalculamos con los mejores datos disponibles
+    };
+  });
+
+  return { boards: updatedBoards, isLoading: false, error: null };
+}),
       addBoard: (board) => set((state) => ({ 
-        boards: [board, ...state.boards] 
+        boards: [{ ...board, ...calculateBoardMetrics(board.columns || []) }, ...state.boards] 
       })),
 
-      updateBoard: (updatedBoard: Board) =>
-        set((state) => {
-          const boardIndex = state.boards.findIndex((b) => b.id === updatedBoard.id);
-          if (boardIndex === -1) return { boards: [...state.boards, updatedBoard] };
+      updateBoard: (updatedBoard) => set((state) => {
+        const boardWithMetrics = {
+          ...updatedBoard,
+          ...calculateBoardMetrics(updatedBoard.columns || [])
+        };
+        
+        const filtered = state.boards.filter(b => Number(b.id) !== Number(updatedBoard.id));
+        return { boards: [boardWithMetrics, ...filtered] };
+      }),
 
-          const updatedBoards = [...state.boards];
-          updatedBoards[boardIndex] = {
-            ...updatedBoards[boardIndex],
-            ...updatedBoard,
-            columns: updatedBoard.columns || updatedBoards[boardIndex].columns || [],
-            members: updatedBoard.members || updatedBoards[boardIndex].members || [],
-            updated_at: new Date().toISOString(),
-            last_activity: new Date().toISOString(),
-          };
+      addColumn: (boardId, column) => set((state) => ({
+        boards: state.boards.map(b => {
+          if (b.id !== boardId) return b;
+          const newColumns = [...(b.columns || []), { ...column, cards: column.cards || [] }];
+          return { ...b, columns: newColumns, ...calculateBoardMetrics(newColumns) };
+        })
+      })),
 
-          return { boards: updatedBoards };
-        }),
+      removeColumn: (boardId, columnId) => set((state) => ({
+        boards: state.boards.map(b => {
+          if (b.id !== boardId) return b;
+          const newColumns = b.columns.filter(c => c.id !== columnId);
+          return { ...b, columns: newColumns, ...calculateBoardMetrics(newColumns) };
+        })
+      })),
 
-      updateCard: (columnId: number, cardId: number, payload: Partial<Card>) =>
-        set((state) => ({
-          boards: state.boards.map((board) => {
-            const hasColumn = board.columns?.some((c) => Number(c.id) === Number(columnId));
-            if (!hasColumn) return board;
+      addCard: (columnId, card) => set((state) => ({
+        boards: state.boards.map((board) => {
+          if (!board.columns?.some(col => col.id === columnId)) return board;
+          const newColumns = board.columns.map((col) => {
+            if (col.id !== columnId) return col;
+            const exists = col.cards?.some(c => c.id === card.id);
+            return exists ? col : { ...col, cards: [...(col.cards || []), card] };
+          });
+          return { ...board, columns: newColumns, ...calculateBoardMetrics(newColumns) };
+        })
+      })),
 
-            const newColumns = board.columns.map((col) => {
-              if (Number(col.id) !== Number(columnId)) return col;
-              return {
-                ...col,
-                cards: col.cards.map((card) => 
-                  card.id === cardId ? { ...card, ...payload } : card
-                ),
-              };
-            });
+      moveCard: (fromColumnId, cardId, toColumnId, newIndex) => set((state) => ({
+        boards: state.boards.map((board) => {
+          const hasCols = board.columns?.some(c => c.id === fromColumnId || c.id === toColumnId);
+          if (!hasCols) return board;
 
-            return {
-              ...board,
-              ...calculateBoardMetrics(newColumns),
-              columns: newColumns,
-              last_activity: new Date().toISOString(),
-            };
-          }),
-        })),
+          let movedCard: Card | undefined;
+          const intermediateCols = board.columns.map(col => {
+            if (col.id === fromColumnId) {
+              movedCard = col.cards?.find(c => c.id === cardId);
+              return { ...col, cards: (col.cards || []).filter(c => c.id !== cardId) };
+            }
+            return col;
+          });
 
-      addCard: (columnId: number, card: Card) =>
-        set((state) => ({
-          boards: state.boards.map((board) => {
-            const belongsToThisBoard = board.columns?.some(col => Number(col.id) === Number(columnId));
-            if (!belongsToThisBoard) return board;
+          if (!movedCard) return board;
 
-            const newColumns = (board.columns || []).map((col) => {
-              if (Number(col.id) === Number(columnId)) {
-                const cardExists = col.cards?.some((c) => c.id === card.id);
-                return cardExists ? col : { ...col, cards: [...(col.cards || []), card] };
-              }
-              return col;
-            });
+          const finalColumns = intermediateCols.map(col => {
+            if (col.id === toColumnId) {
+              const newCards = [...(col.cards || [])];
+              newCards.splice(newIndex, 0, { ...movedCard!, column: toColumnId });
+              return { ...col, cards: newCards };
+            }
+            return col;
+          });
 
-            return {
-              ...board,
-              ...calculateBoardMetrics(newColumns),
-              last_activity: new Date().toISOString(),
-              columns: newColumns,
-            };
-          }),
-        })),
+          return { ...board, columns: finalColumns, ...calculateBoardMetrics(finalColumns) };
+        })
+      })),
 
-      removeCard: (columnId: number, cardId: number) =>
-        set((state) => ({
-          boards: state.boards.map((board) => {
-            const hasColumn = board.columns?.some(c => Number(c.id) === Number(columnId));
-            if (!hasColumn) return board;
+      // ... las demás funciones siguen el mismo patrón de inmutabilidad ...
+      updateCard: (columnId, cardId, payload) => set((state) => ({
+        boards: state.boards.map(board => {
+          if (!board.columns.some(c => c.id === columnId)) return board;
+          const newCols = board.columns.map(col => col.id === columnId 
+            ? { ...col, cards: col.cards.map(c => c.id === cardId ? { ...c, ...payload } : c) }
+            : col
+          );
+          return { ...board, columns: newCols, ...calculateBoardMetrics(newCols) };
+        })
+      })),
 
-            const newColumns = (board.columns || []).map((c) =>
-              Number(c.id) === Number(columnId)
-                ? { ...c, cards: (c.cards || []).filter((card) => card.id !== cardId) }
-                : c
-            );
+      removeCard: (columnId, cardId) => set((state) => ({
+        boards: state.boards.map(board => {
+          if (!board.columns.some(c => c.id === columnId)) return board;
+          const newCols = board.columns.map(col => col.id === columnId 
+            ? { ...col, cards: col.cards.filter(c => c.id !== cardId) }
+            : col
+          );
+          return { ...board, columns: newCols, ...calculateBoardMetrics(newCols) };
+        })
+      })),
 
-            return {
-              ...board,
-              ...calculateBoardMetrics(newColumns),
-              last_activity: new Date().toISOString(),
-              columns: newColumns,
-            };
-          }),
-        })),
+      updateColumn: (boardId, columnId, payload) => set((state) => ({
+        boards: state.boards.map(board => {
+          if (board.id !== boardId) return board;
+          const newCols = board.columns.map(col => col.id === columnId ? { ...col, ...payload } : col);
+          return { ...board, columns: newCols, ...calculateBoardMetrics(newCols) };
+        })
+      })),
 
-      addColumn: (boardId: number, column: Column) =>
-        set((state) => ({
-          boards: state.boards.map((b) =>
-            b.id === boardId
-              ? { 
-                  ...b, 
-                  columns_count: (b.columns_count || 0) + 1,
-                  columns: [...(b.columns || []), { ...column, cards: column.cards || [] }],
-                  last_activity: new Date().toISOString(),
-                }
-              : b
-          ),
-        })),
+      addMemberToBoard: (boardId, member) => set((state) => ({
+        boards: state.boards.map(b => b.id === boardId ? { ...b, members: [...(b.members || []), member] } : b)
+      })),
 
-      removeColumn: (boardId: number, columnId: number) =>
-        set((state) => ({
-          boards: state.boards.map((b) =>
-            b.id === boardId
-              ? { 
-                  ...b, 
-                  columns_count: Math.max(0, (b.columns_count || 1) - 1),
-                  columns: (b.columns || []).filter((c) => c.id !== columnId),
-                  last_activity: new Date().toISOString(),
-                }
-              : b
-          ),
-        })),
-
-      addMemberToBoard: (boardId: number, member: BoardMember) =>
-        set((state) => ({
-          boards: state.boards.map((b) =>
-            b.id === boardId
-              ? {
-                  ...b,
-                  members: b.members?.some((m) => m.user.id === member.user.id)
-                    ? b.members
-                    : [...(b.members || []), member],
-                  last_activity: new Date().toISOString(),
-                }
-              : b
-          ),
-        })),
-
-      moveCard: (fromColumnId: number, cardId: number, toColumnId: number, newOrder: number) =>
-        set((state) => ({
-          boards: state.boards.map((board) => {
-            const hasFrom = board.columns?.some(c => Number(c.id) === Number(fromColumnId));
-            if (!hasFrom) return board;
-
-            let movedCard: Card | null = null;
-            const nextColumns = board.columns.map(col => {
-              if (Number(col.id) === Number(fromColumnId)) {
-                movedCard = col.cards.find(c => Number(c.id) === Number(cardId)) || null;
-                return { ...col, cards: col.cards.filter(c => Number(c.id) !== Number(cardId)) };
-              }
-              return col;
-            });
-
-            if (!movedCard) return board;
-
-            const finalColumns = nextColumns.map(col => {
-              if (Number(col.id) === Number(toColumnId)) {
-                const newCards = [...col.cards];
-                const insertIndex = Math.max(0, Math.floor(newOrder) - 1);
-                newCards.splice(insertIndex, 0, { 
-                  ...movedCard!, 
-                  column: Number(toColumnId), 
-                  order: newOrder 
-                });
-                return { ...col, cards: newCards };
-              }
-              return col;
-            });
-
-            return {
-              ...board,
-              ...calculateBoardMetrics(finalColumns),
-              last_activity: new Date().toISOString(),
-              columns: finalColumns
-            };
-          })
-        })),
+      syncBoardMetrics: (boardId) => set((state) => ({
+        boards: state.boards.map(board => board.id === boardId 
+          ? { ...board, ...calculateBoardMetrics(board.columns || []) } 
+          : board
+        )
+      })),
     }),
     {
-      name: "portfolio-management-storage", 
-      storage: createJSONStorage(() => localStorage), 
+      name: "portfolio-management-storage",
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ boards: state.boards }),
     }
   )

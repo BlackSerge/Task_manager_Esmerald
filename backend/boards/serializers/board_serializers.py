@@ -1,161 +1,140 @@
+# apps/boards/api/serializers.py
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.db.models import Count
 from ..models import Board, Column, Card, BoardMember
 
 User = get_user_model()
 
-# --- Identidad y Miembros ---
 
 class UserMinimalSerializer(serializers.ModelSerializer):
-    """Información básica para avatars y etiquetas."""
     class Meta:
         model = User
         fields = ("id", "username", "email")
 
-
 class BoardMemberSerializer(serializers.ModelSerializer):
-    """Representación del miembro desde la tabla intermedia."""
     user = UserMinimalSerializer(read_only=True)
-    
     class Meta:
         model = BoardMember
         fields = ("user", "role", "joined_at")
 
 
-# --- Contenido ---
 
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
         fields = ("id", "title", "description", "priority", "order", "column")
 
-
 class ColumnSerializer(serializers.ModelSerializer):
     cards = CardSerializer(many=True, read_only=True)
     board = serializers.PrimaryKeyRelatedField(queryset=Board.objects.all(), required=False)
-
     class Meta:
         model = Column
         fields = ("id", "title", "order", "cards", "board")
 
-
-# --- Mixin de Permisos y Lógica de Negocio ---
 
 class BoardBusinessLogicMixin:
     """Lógica compartida para permisos y estadísticas de tableros."""
     
     def get_current_user_role(self, obj: Board) -> str:
         request = self.context.get('request')
-        if not request or not request.user or request.user.is_anonymous:
+        user = getattr(request, 'user', None) if request else self.context.get('user')
+
+        if not user or user.is_anonymous:
             return "viewer"
         
-        if obj.owner_id == request.user.id:
+        if obj.owner_id == user.id:
             return "admin"
+       
+        memberships = getattr(obj, 'boardmember_set', None)
+        if memberships:
+            # Optimizamos para no hacer query extra si ya está prefecheado
+            for m in (memberships.all() if hasattr(memberships, 'all') else memberships):
+                if m.user_id == user.id:
+                    return str(m.role)
+        else:
+            membership = BoardMember.objects.filter(board=obj, user_id=user.id).first()
+            if membership:
+                return str(membership.role)
             
-        membership = BoardMember.objects.filter(board=obj, user=request.user).first()
-        return membership.role if membership else "viewer"
+        return "viewer"
 
     def calculate_progress(self, obj: Board) -> dict:
-        """Calcula estadísticas de tarjetas de forma centralizada."""
-        # Obtenemos todas las columnas para identificar la última (Done)
-        columns = list(obj.columns.all().prefetch_related('cards'))
+        """
+        Calcula estadísticas usando anotaciones SQL (Pro) 
+        o cálculo manual (Fallback/Detalle).
+        """
+        # PRIORIDAD: Intentar leer las anotaciones del Selector (Ya blindadas con Coalesce)
+        total = getattr(obj, 'total_cards_count_annotated', None)
+        completed = getattr(obj, 'completed_cards_count_annotated', None)
+
+        if total is not None and completed is not None:
+            total = int(total)
+            completed = int(completed)
+            percentage = int((completed / total) * 100) if total > 0 else 0
+            return {"total": total, "completed": completed, "percentage": percentage}
+
+       
+        columns = list(obj.columns.all())
         if not columns:
             return {"total": 0, "completed": 0, "percentage": 0}
 
-        # Todas las tarjetas del tablero
-        all_cards = [card for col in columns for card in col.cards.all()]
+        all_cards = []
+        for col in columns:
+            all_cards.extend(list(col.cards.all()))
+            
         total_cards = len(all_cards)
-        
         if total_cards == 0:
             return {"total": 0, "completed": 0, "percentage": 0}
 
-        # Definimos la última columna por orden como la de 'Completadas'
         last_column = max(columns, key=lambda c: c.order)
         completed_cards = len([card for card in all_cards if card.column_id == last_column.id])
-        
-        percentage = int((completed_cards / total_cards) * 100)
         
         return {
             "total": total_cards,
             "completed": completed_cards,
-            "percentage": percentage
+            "percentage": int((completed_cards / total_cards) * 100)
         }
 
-
-# --- Tableros ---
+# --- Tableros (ACTUALIZADOS PARA EVITAR DESFASE) ---
 
 class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
-    """
-    Optimizado para el dashboard. 
-    Utiliza las propiedades del modelo para máxima velocidad.
-    """
-    
     owner = UserMinimalSerializer(read_only=True)
     members = UserMinimalSerializer(many=True, read_only=True)
     current_user_role = serializers.SerializerMethodField()
-    columns_count = serializers.IntegerField(source='columns.count', read_only=True)
-    total_cards = serializers.IntegerField(source='total_cards_count', read_only=True)
-    completed_cards = serializers.IntegerField(source='completed_cards_count', read_only=True)
-    progress_percentage = serializers.IntegerField(read_only=True)
-    last_activity = serializers.DateTimeField(read_only=True)
+    progress_percentage = serializers.SerializerMethodField()
+    total_cards = serializers.IntegerField(source='total_cards_count_annotated', read_only=True, default=0)
+    completed_cards = serializers.IntegerField(source='completed_cards_count_annotated', read_only=True, default=0)
 
     class Meta:
         model = Board
         fields = (
-            "id", 
-            "title", 
-            "owner", 
-            "members", 
-            "current_user_role",
-            "columns_count", 
-            "total_cards", 
-            "completed_cards",
-            "progress_percentage", 
-            "last_activity", 
-            "created_at", 
-            "updated_at"
+            "id", "title", "owner", "members", "current_user_role",
+            "progress_percentage", "total_cards", "completed_cards",
+            "last_activity", "created_at", "updated_at"
         )
 
     def get_current_user_role(self, obj: Board) -> str:
-        """Utiliza la lógica del Mixin para determinar el rol del usuario actual."""
         return super().get_current_user_role(obj)
-    def get_columns_count(self, obj: Board) -> int:
-        return obj.columns.count()
-
-    def get_total_cards(self, obj: Board) -> int:
-        return self.calculate_progress(obj)["total"]
-
-    def get_completed_cards(self, obj: Board) -> int:
-        return self.calculate_progress(obj)["completed"]
 
     def get_progress_percentage(self, obj: Board) -> int:
         return self.calculate_progress(obj)["percentage"]
 
 
 class BoardDetailSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
-    """Representación completa para la vista de tablero individual."""
-    
     columns = ColumnSerializer(many=True, read_only=True)
     owner = UserMinimalSerializer(read_only=True)
     members = BoardMemberSerializer(source='boardmember_set', many=True, read_only=True)
     current_user_role = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
-    last_activity = serializers.DateTimeField(read_only=True)
+    total_cards = serializers.IntegerField(source='total_cards_count_annotated', read_only=True, default=0)
+    completed_cards = serializers.IntegerField(source='completed_cards_count_annotated', read_only=True, default=0)
 
     class Meta:
         model = Board
         fields = (
-            "id", 
-            "title", 
-            "owner", 
-            "columns", 
-            "members", 
-            "current_user_role",
-            "progress_percentage", 
-            "last_activity",
-            "created_at", 
-            "updated_at"
+            "id", "title", "owner", "columns", "members", 
+            "current_user_role", "progress_percentage", "total_cards", "completed_cards",
+            "last_activity", "created_at", "updated_at"
         )
     
     def get_current_user_role(self, obj: Board) -> str:

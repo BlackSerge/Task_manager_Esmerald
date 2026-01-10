@@ -35,17 +35,19 @@ interface CardRaw extends Omit<Card, 'id' | 'column'> {
   column: string | number;
 }
 
-/**
- * Mapeador estricto para transformar la respuesta del backend
- */
+
 const mapBoardResponse = (board: BoardRaw): Board => {
   return {
     ...board,
     id: Number(board.id),
+    total_cards: Number(board.total_cards ?? 0),
+    completed_cards: Number(board.completed_cards ?? 0),
+    progress_percentage: Number(board.progress_percentage ?? 0),
     current_user_role: board.current_user_role ?? 'viewer',
     owner: board.owner 
       ? { ...board.owner, id: Number(board.owner.id) } 
       : { id: 0, username: 'Sin Propietario', email: '' },
+    
     members: (board.members || []).map(m => ({
       user: {
         id: Number(m.user?.id ?? m.id ?? 0),
@@ -55,6 +57,7 @@ const mapBoardResponse = (board: BoardRaw): Board => {
       role: m.role ?? 'viewer',
       joined_at: m.joined_at ?? new Date().toISOString()
     })),
+    
     columns: (board.columns || []).map(col => ({
       ...col,
       id: Number(col.id),
@@ -66,7 +69,6 @@ const mapBoardResponse = (board: BoardRaw): Board => {
     }))
   } as Board;
 };
-
 export const boardService = {
   // --- Gestión de Tableros ---
   
@@ -112,7 +114,7 @@ export const boardService = {
     return { ...data, id: Number(data.id), cards: data.cards?.map(c => ({...c, id: Number(c.id), column: Number(c.column)})) || [] };
   },
 
-  // ✅ NUEVA: Eliminar Columna
+ 
   deleteColumn: async (columnId: number): Promise<void> => {
     await http.delete(`${API_ENDPOINTS.COLUMNS.BASE}${columnId}/`);
   },
@@ -134,13 +136,13 @@ export const boardService = {
     return { ...data, id: Number(data.id), column: Number(data.column) };
   },
 
-  // ✅ NUEVA: Actualizar Tarjeta (Título, descripción, prioridad, etc.)
+  
   updateCard: async (cardId: number, payload: Partial<Card>): Promise<Card> => {
     const { data } = await http.patch<CardRaw>(`${API_ENDPOINTS.CARDS.BASE}${cardId}/`, payload);
     return { ...data, id: Number(data.id), column: Number(data.column) };
   },
 
-  // ✅ NUEVA: Eliminar Tarjeta
+  
   deleteCard: async (cardId: number): Promise<void> => {
     await http.delete(`${API_ENDPOINTS.CARDS.BASE}${cardId}/`);
   },

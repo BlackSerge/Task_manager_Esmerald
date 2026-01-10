@@ -8,7 +8,7 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: FIVE_MINUTES,
       retry: 1,
-      refetchOnWindowFocus: false, // Recomendado para evitar peticiones constantes al cambiar de pestaña
+      refetchOnWindowFocus: false, 
     },
   },
 });

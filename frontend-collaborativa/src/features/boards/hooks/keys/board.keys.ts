@@ -1,4 +1,3 @@
-// src/features/boards/keys/board.keys.ts
 export const boardKeys = {
   all: ['boards'] as const,
   lists: () => [...boardKeys.all, 'list'] as const,

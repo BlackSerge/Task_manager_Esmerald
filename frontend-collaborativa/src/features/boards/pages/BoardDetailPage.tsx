@@ -1,8 +1,7 @@
 import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { DragDropContext } from "@hello-pangea/dnd";
-import { Loader2 } from "lucide-react";
-import { motion, Variants } from "framer-motion";
+import { motion, Variants, AnimatePresence } from "framer-motion";
 
 import { Navbar } from "@/shared/layout/components/Navbar";
 import { useNavBarStore } from "@/shared/components/stores/navbar.store";
@@ -13,162 +12,164 @@ import { useBoardDragAndDrop } from "../hooks/useBoardDragAndDrop";
 import { CreateColumnForm } from "../components/BoardDetail/CreateColumnForm";
 import { ColumnList } from "../components/BoardDetail/ColumnList";
 import { ChatPanel } from "@/features/chat/components/ChatPanel";
+import { BoardDetailSkeleton } from "../components/BoardDetail/BoardDetailSkeleton";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.12 },
-  },
-};
-
-const columnVariants: Variants = {
-  hidden: { opacity: 0, y: 30, scale: 0.95 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      type: "spring",
-      stiffness: 100,
-      damping: 15,
+    transition: { 
+      staggerChildren: 0.1,
+      when: "beforeChildren" 
     },
   },
 };
 
+const columnVariants: Variants = {
+  hidden: { opacity: 0, y: 20, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: "spring", stiffness: 100, damping: 15 },
+  },
+};
+
 export const BoardDetailPage: React.FC = () => {
-  // 1. HOOKS DE RUTAS Y UI
   const { boardId } = useParams<{ boardId: string }>();
   const { isChatOpen, closeChat } = useNavBarStore();
 
-  // 2. HOOKS DE DATOS (Se ejecutan siempre primero)
+  // 1. DATA FETCHING (Carga inicial vía Service Layer)
+  // Mantenemos la query para obtener los datos si el usuario refresca la página
   const { isLoading: isQueryLoading, data: boardData } = useBoardDetail(boardId);
+  
+  // 2. SOCKET SYNC (Mantiene la conexión WebSocket activa)
+  // Ahora es seguro porque useSocketSync usa una Ref interna para el handler
   useSocketSync(boardId);
 
-  // 3. SELECTORES DE STORE (Ubicados aquí para evitar el error de llamada condicional)
-  const boardFromStore = useBoardsStore((state) =>
+  // 3. FUENTE DE VERDAD (Zustand)
+  const board = useBoardsStore((state) =>
     state.boards.find((b) => String(b.id) === String(boardId))
   );
-  const isStoreLoading = useBoardsStore((state) => state.isLoading);
   
-  // 4. LÓGICA DE DND
+  const updateBoardStore = useBoardsStore((state) => state.updateBoard);
+
+  // 4. HIDRATACIÓN DEFENSIVA
+  useEffect(() => {
+    /**
+     * Solo hidratamos el store si:
+     * 1. Tenemos datos de la API (boardData).
+     * 2. El board NO existe aún en el store centralizado.
+     * Esto evita que React Query sobreescriba cambios en tiempo real del Socket.
+     */
+    if (boardData && !board) {
+      updateBoardStore(boardData);
+    }
+  }, [boardData, board, updateBoardStore]);
+
+  // 5. LÓGICA DE DRAG & DROP
   const { handleDragEnd } = useBoardDragAndDrop(boardId);
 
-  // 5. DETERMINAR FUENTE DE VERDAD
-  const board = boardData || boardFromStore;
+  // 6. GESTIÓN DE ESTADOS DE CARGA
+  // Si no hay board en store y la query está cargando, mostramos skeleton
+  const showSkeleton = isQueryLoading && !board;
 
-  // 6. EFECTOS DE MONITOREO
-  useEffect(() => {
-    if (board) {
-      console.group(`📊 [BOARD SYNC] - ID: ${board.id}`);
-      console.log("Métricas:", {
-        total: board.total_cards,
-        completed: board.completed_cards,
-        progress: `${board.progress_percentage}%`
-      });
-      console.groupEnd();
-    }
-  }, [board]);
-
-  // --- RENDERING CONDICIONAL (Después de todos los hooks) ---
-
-  // UI: Pantalla de Carga
-  if (!board && (isQueryLoading || isStoreLoading)) {
+  if (showSkeleton) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-white z-[9999]">
-        <div className="flex flex-col items-center gap-6">
-          <div className="relative flex items-center justify-center">
-             <Loader2 className="w-12 h-12 text-emerald-500 animate-spin absolute" />
-             <div className="w-16 h-16 border-4 border-emerald-50 rounded-full"></div>
-          </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-800 animate-pulse">
-            Sincronizando Entorno...
-          </p>
-        </div>
+      <div className="fixed inset-0 flex flex-col bg-[#f8fafc]">
+        <Navbar />
+        <BoardDetailSkeleton />
       </div>
     );
   }
 
-  // UI: Error 404
-  if (!board) {
+  // Si terminó la carga y el board no existe en ninguna parte, es error 404
+  if (!board && !isQueryLoading) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#f8fafc]">
-        <div className="p-10 bg-white rounded-[3rem] shadow-xl border border-emerald-50 text-center max-w-sm">
-          <h1 className="text-6xl font-black text-emerald-950 mb-4">404</h1>
-          <p className="font-bold text-emerald-700 uppercase tracking-widest text-xs mb-6">
-            El tablero ha desaparecido de la red
-          </p>
-          <button 
-             onClick={() => window.location.href = '/'}
-             className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
-          >
-            Volver al Inicio
-          </button>
-        </div>
+        <Navbar />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <h2 className="text-2xl font-black text-emerald-950/20 uppercase tracking-[0.2em]">
+            Tablero no encontrado
+          </h2>
+        </motion.div>
       </div>
     );
   }
 
-  // UI: Contenido Principal
+  // 7. RENDERIZADO PRINCIPAL (Solo si 'board' existe en el Store)
   return (
     <div className="fixed inset-0 flex flex-col bg-[#f8fafc] overflow-hidden">
       <Navbar />
 
       <div className="flex-1 flex relative overflow-hidden">
         <main className="flex-1 h-full overflow-hidden">
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <motion.div 
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="h-full overflow-x-auto p-10 flex gap-8 items-start custom-scrollbar"
-            >
-              {board.columns?.map((column, idx) => (
+          
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="h-full"
+          >
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="h-full overflow-x-auto p-10 flex gap-8 items-start custom-scrollbar"
+              >
+                {board?.columns?.map((column, idx) => (
+                  <motion.div 
+                    key={`col-${column.id}`} 
+                    variants={columnVariants}
+                    layout 
+                    className="h-full"
+                  >
+                    <ColumnList
+                      column={column}
+                      board={board}
+                      index={idx}
+                      totalColumns={board.columns.length}
+                    />
+                  </motion.div>
+                ))}
+                
                 <motion.div 
-                  key={`col-${column.id}`} 
-                  variants={columnVariants}
-                  layout 
-                  className="h-full"
+                  variants={columnVariants} 
+                  className="w-80 shrink-0 pr-20"
                 >
-                  <ColumnList
-                    column={column}
-                    board={board}
-                    index={idx}
-                    totalColumns={board.columns.length}
-                  />
+                  <CreateColumnForm boardId={String(board?.id)} />
                 </motion.div>
-              ))}
-              
-              <motion.div variants={columnVariants} className="w-80 shrink-0 pr-20">
-                <CreateColumnForm boardId={String(board.id)} />
               </motion.div>
-            </motion.div>
-          </DragDropContext>
+            </DragDropContext>
+          </motion.div>
         </main>
 
-        {/* Overlay del Chat */}
-        {isChatOpen && (
-          <div
-            className="fixed inset-0 top-20 bg-emerald-950/20 backdrop-blur-sm z-[140] transition-all"
-            onClick={closeChat}
-          />
-        )}
+        {/* Chat Components */}
+        <AnimatePresence>
+          {isChatOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 top-20 bg-emerald-950/20 backdrop-blur-sm z-[140]" 
+              onClick={closeChat} 
+            />
+          )}
+        </AnimatePresence>
 
-        {/* Panel Lateral del Chat */}
-        <aside
-          className={`
-            fixed top-20 right-0 bottom-0 z-[150]
-            w-[360px] md:w-[450px]
-            bg-white shadow-[-20px_0_60px_rgba(6,78,59,0.15)]
-            rounded-tl-[4.5rem] 
-            border-l border-emerald-100/50
-            overflow-hidden 
+        <aside className={`
+            fixed top-20 right-0 bottom-0 z-[150] w-[360px] md:w-[450px] bg-white 
+            shadow-[-20px_0_60px_rgba(6,78,59,0.15)] rounded-tl-[4.5rem] 
             transition-all duration-700 cubic-bezier(0.16, 1, 0.3, 1)
             ${isChatOpen ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}
-          `}
-        >
+        `}>
           <div className="flex flex-col h-full w-full bg-white">
-            {isChatOpen && <ChatPanel boardId={String(board.id)} />}
+            {isChatOpen && board && <ChatPanel boardId={String(board.id)} />}
           </div>
         </aside>
       </div>

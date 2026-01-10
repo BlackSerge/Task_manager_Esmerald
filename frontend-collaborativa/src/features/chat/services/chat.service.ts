@@ -1,7 +1,6 @@
-// src/features/chat/services/chat.service.ts
 import { API_ENDPOINTS } from "@/core/constants/endpoints";
 import { http } from "@/api/http.service";
-import { storageService } from "@/core/services/storage/storage.service"; // Tu servicio
+import { storageService } from "@/core/services/storage/storage.service";
 import { Message, ChatEvent } from "../types/chat.types";
 
 export class ChatService {
@@ -19,44 +18,52 @@ export class ChatService {
   ): void {
     if (this.socket) this.disconnect();
 
-    // Extraemos el token usando tu lógica de storage
     const token = storageService.getToken();
-    
-    // Construimos la URL con el token para que JWTAuthMiddleware lo valide
     const baseUrl = import.meta.env.VITE_WS_URL;
     const url = `${baseUrl}/ws/chat/${boardId}/?token=${token}`;
     
     this.socket = new WebSocket(url);
 
     this.socket.onopen = () => {
-      console.log("🚀 [Chat]: Conectado con éxito");
       onStatusChange(true);
     };
 
-    this.socket.onmessage = (event) => {
-      const data: ChatEvent = JSON.parse(event.data);
-      onMessage(data);
+    this.socket.onmessage = (event: MessageEvent) => {
+      try {
+       
+        const data = JSON.parse(event.data) as ChatEvent;
+        
+       
+        onMessage(data);
+      } catch {
+        // Error de parseo manejado silenciosamente
+      }
     };
 
-    this.socket.onclose = (e) => {
-      console.log("🔌 [Chat]: Desconectado", e.code);
+    this.socket.onclose = () => {
       onStatusChange(false);
     };
 
-    this.socket.onerror = (err) => {
-      console.error("❌ [Chat]: Error de conexión", err);
+    this.socket.onerror = () => {
+      onStatusChange(false);
     };
   }
 
   send(message: string): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({ action: "send_message", message }));
+      
+      this.socket.send(JSON.stringify({ 
+        action: "send_message", 
+        message: message 
+      }));
     }
   }
 
   disconnect(): void {
-    this.socket?.close();
-    this.socket = null;
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
   }
 }
 

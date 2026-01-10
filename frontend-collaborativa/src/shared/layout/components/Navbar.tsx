@@ -6,7 +6,7 @@ import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useNavBarStore } from "@/shared/components/stores/navbar.store";
 import { useBoardsStore } from "@/features/boards/store/board.store";
 import { ShareBoardModal } from "@/features/boards/components/BoardDetail/ShareBoardModal";
-import { MemberAvatars } from "@/features/boards/components/BoardDetail/MemberAvatars";
+import { MemberAvatars } from "@/shared/components/ui/MemberAvatars";
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -16,12 +16,13 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const { boardId } = useParams<{ boardId: string }>(); 
   
-  // 1. Buscamos el tablero actual en el store para pasar el objeto completo al modal
+  // Sincronización con el store
   const board = useBoardsStore((state) => 
     state.boards.find(b => String(b.id) === String(boardId))
   );
   
   const isBoardDetail = location.pathname.includes("/boards/") && !!boardId;
+  // Extraemos miembros de forma segura
   const members = board?.members ?? [];
 
   return (
@@ -34,10 +35,15 @@ export const Navbar: React.FC = () => {
           <span className="text-2xl font-black text-emerald-950 tracking-tighter uppercase">Emerald</span>
         </Link>
 
-        {/* AVATARES DE MIEMBROS: Visible solo en detalle de tablero */}
+        {/* AVATARES DE MIEMBROS: Usando el componente unificado de shared */}
         {isBoardDetail && members.length > 0 && (
           <div className="hidden xl:block border-l border-emerald-100 pl-8">
-            <MemberAvatars members={members} />
+            <MemberAvatars 
+              members={members} // Pasamos la variable segura 'members'
+              limit={5} 
+              showRoleBadge={true} // En Navbar sí queremos ver los roles
+              showLabel={false}    // En Navbar no hace falta el texto "Colaboradores"
+            />
           </div>
         )}
       </div>
@@ -45,7 +51,6 @@ export const Navbar: React.FC = () => {
       <div className="flex items-center gap-4">
         {isBoardDetail && (
           <>
-            {/* Botón Compartir: Solo si existe el tablero */}
             <button 
               onClick={() => setIsInviteModalOpen(true)}
               disabled={!board}
@@ -64,7 +69,6 @@ export const Navbar: React.FC = () => {
               <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Live</span>
             </div>
 
-            {/* Chat Toggle */}
             <button 
               onClick={toggleChat}
               className={`flex items-center gap-3 px-6 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all hover:-translate-y-1 active:scale-90 border ${
@@ -79,7 +83,6 @@ export const Navbar: React.FC = () => {
           </>
         )}
         
-        {/* User Info (Solo en vista de lista) */}
         {!isBoardDetail && (
           <div className="text-right hidden sm:block border-r border-emerald-100 pr-4">
             <p className="text-sm font-black text-emerald-900 leading-none">{user?.username ?? 'Invitado'}</p>
@@ -96,7 +99,7 @@ export const Navbar: React.FC = () => {
         </button>
       </div>
 
-      {/* MODAL DE COMPARTIR: Requiere el objeto board completo */}
+      {/* Modal Seguro */}
       {isInviteModalOpen && board && (
         <ShareBoardModal
           board={board} 

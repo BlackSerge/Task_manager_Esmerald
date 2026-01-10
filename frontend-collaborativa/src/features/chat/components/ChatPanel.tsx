@@ -1,6 +1,6 @@
-// src/features/chat/components/ChatPanel.tsx
 import React, { useState, useRef, useEffect } from "react";
 import { useChatStore } from "../store/chat.store";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import { Send, Hash, Loader2 } from "lucide-react";
 
 interface Props {
@@ -11,14 +11,8 @@ export const ChatPanel: React.FC<Props> = ({ boardId }) => {
   const [inputText, setInputText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  const { 
-    messages, 
-    initChat, 
-    disconnect, 
-    sendMessage, 
-    isConnected, 
-    isLoading 
-  } = useChatStore();
+  const currentUser = useAuthStore((state) => state.user);
+  const { messages, initChat, disconnect, sendMessage, isConnected, isLoading } = useChatStore();
 
   useEffect(() => {
     initChat(boardId);
@@ -42,83 +36,111 @@ export const ChatPanel: React.FC<Props> = ({ boardId }) => {
   };
 
   return (
-    /* CAMBIOS CLAVE:
-       - Eliminado w-80 (ahora es w-full para llenar el aside)
-       - Eliminado h-[88vh] (ahora h-full para llenar el aside)
-       - Eliminado rounded-[2.5rem] (el recorte lo hace el aside)
-       - bg-white puro para que no se vea el fondo de atrás
-    */
-    <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-white overflow-hidden border-l border-emerald-50">
       
-      {/* Header - Ajustado para que la curva del aside no corte el texto */}
-      <div className="pt-10 pb-6 px-10 border-b border-emerald-50 bg-emerald-50/30 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <Hash size={18} className="text-emerald-600" />
-          <h3 className="text-sm font-black uppercase tracking-[0.2em] text-emerald-900">
-            Discusión
-          </h3>
+      {/* Header */}
+      <header className="pt-10 pb-6 px-10 border-b border-emerald-100/50 bg-emerald-50/20 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="bg-emerald-100 p-2 rounded-lg">
+            <Hash size={18} className="text-emerald-700" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-widest text-emerald-950">Discusión</h3>
+            <p className="text-[9px] text-emerald-600/60 font-bold uppercase tracking-widest">Proyecto Activo</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">
-            {isConnected ? "En línea" : "Offline"}
+        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-emerald-100 shadow-sm">
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`} />
+          <span className="text-[10px] font-black uppercase text-emerald-900/40 tracking-widest">
+            {isConnected ? "En Vivo" : "Offline"}
           </span>
-          <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-red-400'}`} />
         </div>
-      </div>
+      </header>
 
-      {/* Área de Mensajes - Padding lateral aumentado para que respire */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-6 space-y-6 custom-scrollbar bg-white">
+      {/* Messages Area */}
+      <div 
+        ref={scrollRef} 
+        className="flex-1 overflow-y-auto px-6 py-8 space-y-8 custom-scrollbar bg-slate-50/20"
+      >
         {isLoading ? (
-          <div className="h-full flex flex-col items-center justify-center gap-3 opacity-40">
+          <div className="h-full flex flex-col items-center justify-center opacity-40">
             <Loader2 className="animate-spin text-emerald-600" size={24} />
-            <span className="text-[11px] font-black uppercase tracking-widest">Sincronizando...</span>
           </div>
         ) : messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center px-10 opacity-30">
-            <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
-               <Hash size={30} className="text-emerald-200" />
-            </div>
-            <p className="text-xs font-bold uppercase tracking-tighter leading-tight">No hay mensajes en este tablero</p>
-          </div>
+          <EmptyChatState />
         ) : (
-          messages.map((msg) => (
-            <div key={`${msg.id}-${msg.created_at}`} className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center px-1">
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                  {msg.username}
-                </span>
-                <span className="text-[9px] text-slate-400 font-bold">
-                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+          messages.map((msg, index) => {
+            const isMe = msg.username === currentUser?.username;
+            
+            return (
+              <div 
+                key={`${msg.id}-${index}`} 
+                className={`flex flex-col w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${isMe ? 'items-end' : 'items-start'}`}
+              >
+                {/* Nombre y Hora */}
+                <div className={`flex items-center gap-2 mb-2 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <span className={`text-[11px] font-black uppercase tracking-wider ${
+                    isMe ? 'text-emerald-600' : 'text-emerald-800'
+                  }`}>
+                    {isMe ? "Tú" : msg.username}
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-bold">
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+
+                {/* Burbuja Corregida */}
+                <div className={`
+                  relative max-w-[85%] p-4 px-5 text-[14px] leading-relaxed shadow-sm transition-all
+                  ${isMe 
+                    ? 'bg-emerald-100 text-emerald-900 rounded-2xl rounded-tr-none border border-emerald-200' 
+                    : 'bg-emerald-600 text-white rounded-2xl rounded-tl-none shadow-md shadow-emerald-200/50'
+                  }
+                `}>
+                  {/* Aseguramos que el contenido se renderice */}
+                  <span className="block break-words">
+                    {msg.content}
+                  </span>
+                  
+                  {/* Decorador de Cola */}
+                  <div className={`absolute top-0 w-3 h-3 ${
+                    isMe 
+                    ? '-right-[5px] bg-emerald-100 [clip-path:polygon(0_0,0_100%,100%_0)] border-r border-emerald-200' 
+                    : '-left-[5px] bg-emerald-600 [clip-path:polygon(0_0,100%_100%,100%_0)]'
+                  }`} />
+                </div>
               </div>
-              <div className="bg-emerald-50/50 p-4 rounded-3xl rounded-tl-none border border-emerald-100/50 text-sm leading-relaxed text-emerald-950 shadow-sm">
-                {msg.content}
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
-      {/* Formulario de envío - Pegado abajo y con padding extra */}
-      <form onSubmit={handleSend} className="p-6 bg-white border-t border-emerald-50 shrink-0">
-        <div className="relative flex items-center">
+      {/* Input */}
+      <footer className="p-6 bg-white border-t border-emerald-100/50">
+        <form onSubmit={handleSend} className="relative flex items-center bg-slate-100 rounded-2xl p-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-200 transition-all">
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder={isConnected ? "Escribe un mensaje..." : "Reconectando..."}
-            disabled={!isConnected || isLoading}
-            className="w-full bg-slate-50 border-2 border-transparent focus:border-emerald-100 rounded-2xl py-4 pl-6 pr-14 text-sm focus:ring-0 outline-none transition-all placeholder:text-slate-400 disabled:opacity-50 font-medium"
+            placeholder="Escribe un mensaje..."
+            className="w-full bg-transparent py-3.5 pl-5 pr-14 text-sm outline-none font-medium text-slate-800"
           />
           <button 
             type="submit"
-            disabled={!inputText.trim() || !isConnected || isLoading}
-            className="absolute right-2 p-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:bg-slate-200 transition-all shadow-md shadow-emerald-200 active:scale-90"
+            disabled={!inputText.trim() || !isConnected}
+            className="absolute right-2 p-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-30"
           >
-            <Send size={16} strokeWidth={3} />
+            <Send size={18} strokeWidth={2.5} />
           </button>
-        </div>
-      </form>
+        </form>
+      </footer>
     </div>
   );
 };
+
+const EmptyChatState = () => (
+  <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
+    <Hash size={32} className="text-emerald-200 mb-4" />
+    <p className="text-xs font-black uppercase tracking-widest">Sin mensajes aún</p>
+  </div>
+);

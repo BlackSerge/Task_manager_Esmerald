@@ -1,7 +1,7 @@
 // src/features/boards/hooks/useBoardSocket.ts
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { socketService } from "../services/socket/socket.service";
+import { socketService } from "../services/socket/board.socket.service";
 import { boardKeys } from "./useBoards";
 
 export const useBoardSocket = (boardId: string | undefined) => {
@@ -14,7 +14,6 @@ export const useBoardSocket = (boardId: string | undefined) => {
     socketService.connect(url);
 
     const unsubscribe = socketService.subscribe((data) => {
-      // ✅ Si alguien movió una carta, invalidamos el detalle del board
       if (data.type === "card_moved" || data.type === "board_update") {
         queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
       }

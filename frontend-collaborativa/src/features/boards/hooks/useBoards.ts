@@ -22,12 +22,12 @@ export const useBoards = () => {
     queryKey: boardKeys.all,
     queryFn: async () => {
       const boards = await boardService.getBoards();
-      setBoards(boards);
+      if (boards && Array.isArray(boards)) {
+        setBoards(boards);
+      }
       return boards;
     },
-    refetchOnWindowFocus: true,
-    refetchOnMount: "always",
-    staleTime: 0, 
+    staleTime: 1000 * 60 * 5, 
   });
 };
 
