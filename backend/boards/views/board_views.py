@@ -24,28 +24,32 @@ class BoardViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self) -> Any:
-        user = self.request.user
         """
-        Optimizado: La lista general ya no necesita 'columns__cards' porque
-        el progreso viene pre-calculado en la consulta SQL principal.
+        Obtiene el queryset base desde el selector y aplica optimizaciones.
+        Se asegura de que las anotaciones de métricas persistan.
         """
-        # El selector ahora inyecta: total_cards_count_annotated y completed_cards_count_annotated
+        # 1. Llamada al selector (inyecta total_cards_count_annotated y completed_cards_count_annotated)
         queryset = selectors.board_list_for_user(user=self.request.user)
         
+        # 2. Aplicar optimizaciones según la acción sin romper las anotaciones
         if self.action == 'list':
-            # Mantenemos solo lo necesario para el Dashboard: Dueño y Miembros (para el rol)
-            return queryset.select_related('owner').prefetch_related(
+            # Nota: El selector ya debería incluir select_related('owner')
+            queryset = queryset.prefetch_related(
                 'members', 
-                'boardmember_set' # Requerido por el Mixin para calcular el rol en la lista
+                'boardmember_set'
             )
-        
-        # En el detalle (retrieve), sí cargamos el árbol completo de datos
-        return queryset.select_related('owner').prefetch_related(
-            'columns__cards', 
-            'boardmember_set__user'
-        )
+        else:
+            # En retrieve, cargamos el árbol completo
+            queryset = queryset.prefetch_related(
+                'columns__cards', 
+                'boardmember_set__user'
+            )
+
+    
+        return queryset
 
     def get_serializer_class(self) -> type:
+        """Determina qué serializador usar según la acción."""
         if self.action == 'list':
             return BoardListSerializer
         return BoardDetailSerializer
@@ -57,9 +61,8 @@ class BoardViewSet(viewsets.ModelViewSet):
         return context
 
     def perform_create(self, serializer: Any) -> None:
-        """Delega la creación al Service Layer para mantener la integridad."""
+        """Delega la creación al Service Layer."""
         try:
-            # El service layer debe retornar el objeto para que el serializer lo use
             board = content_service.create_board(
                 title=serializer.validated_data["title"],
                 user=self.request.user

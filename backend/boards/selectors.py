@@ -11,18 +11,21 @@ User = get_user_model()
 def board_list_for_user(*, user: AbstractBaseUser) -> QuerySet[Board]:
     """
     Retorna los tableros con métricas pre-calculadas en SQL.
-    Utiliza Coalesce para evitar que los valores NULL rompan las métricas al refrescar.
+    Actualizado: Usa una relación directa de tablero en la subquery para evitar el reset a 0.
     """
-    # 1. Subquery para obtener el ID de la última columna (Done) de cada tablero
+    
+    # 1. Obtenemos el ID de la columna con el 'order' más alto para CADA tablero
+    # Esto define qué columna es la de "Completadas"
     last_column_id_subquery = Column.objects.filter(
         board_id=OuterRef('pk')
     ).order_by('-order').values('id')[:1]
 
-    # 2. Subquery para contar tarjetas en la última columna
-    # Agregamos Coalesce aquí también para asegurar integridad en la subquery
+    # 2. Contamos las tarjetas. 
+    # Filtramos por el tablero del OuterRef Y porque pertenezcan a esa última columna.
     completed_cards_subquery = Card.objects.filter(
+        column__board_id=OuterRef('pk'),
         column_id=Subquery(last_column_id_subquery)
-    ).values('column__board').annotate(
+    ).values('column__board_id').annotate(
         cnt=Count('id')
     ).values('cnt')
 
@@ -30,11 +33,12 @@ def board_list_for_user(*, user: AbstractBaseUser) -> QuerySet[Board]:
     return Board.objects.filter(
         Q(owner=user) | Q(members=user)
     ).annotate(
-        # Coalesce(campo, 0) garantiza que el JSON siempre reciba un número
+        # Total de tarjetas: Aseguramos que siempre sea un número
         total_cards_count_annotated=Coalesce(
             Count('columns__cards', distinct=True), 
             0
         ),
+        # Tarjetas completadas: Inyectamos el conteo de la subquery
         completed_cards_count_annotated=Coalesce(
             Subquery(
                 completed_cards_subquery, 
@@ -52,14 +56,11 @@ def board_detail_get(*, user: AbstractBaseUser, board_id: int) -> Optional[Board
     """
     Obtiene el detalle completo incluyendo las anotaciones de progreso.
     """
-    # Reutilizamos la lógica de anotación para que el detalle también tenga los números
     return board_list_for_user(user=user).filter(id=board_id).select_related('owner').prefetch_related(
         'columns__cards',
         'boardmember_set',
         'boardmember_set__user',
     ).first()
-
-
 
 def column_list_by_board(*, user: AbstractBaseUser, board_id: int) -> QuerySet[Column]:
     return Column.objects.filter(

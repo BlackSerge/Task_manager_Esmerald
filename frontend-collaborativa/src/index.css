@@ -4,8 +4,9 @@
 @keyframes shimmer {
   100% { transform: translateX(100%); }
 }
-
-/* src/index.css */
+animate-shimmer {
+  animation: shimmer 2s infinite;
+}
 
 /* Estilo para la clase custom-scrollbar que pusimos en el ChatPanel */
 .custom-scrollbar::-webkit-scrollbar {

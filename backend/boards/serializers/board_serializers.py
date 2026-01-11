@@ -59,43 +59,20 @@ class BoardBusinessLogicMixin:
         return "viewer"
 
     def calculate_progress(self, obj: Board) -> dict:
-        """
-        Calcula estadísticas usando anotaciones SQL (Pro) 
-        o cálculo manual (Fallback/Detalle).
-        """
-        # PRIORIDAD: Intentar leer las anotaciones del Selector (Ya blindadas con Coalesce)
-        total = getattr(obj, 'total_cards_count_annotated', None)
-        completed = getattr(obj, 'completed_cards_count_annotated', None)
+        # Forzamos el uso de las anotaciones que vienen del SELECTOR
+        total = getattr(obj, 'total_cards_count_annotated', 0) or 0
+        completed = getattr(obj, 'completed_cards_count_annotated', 0) or 0
 
-        if total is not None and completed is not None:
-            total = int(total)
-            completed = int(completed)
-            percentage = int((completed / total) * 100) if total > 0 else 0
-            return {"total": total, "completed": completed, "percentage": percentage}
+        # Si por alguna razón el objeto no tiene las anotaciones (ej. en un test simple)
+        # Solo ahí hacemos el cálculo pesado
+        if not hasattr(obj, 'total_cards_count_annotated'):
+             # ... (aquí podrías dejar tu lógica de fallback si quieres, 
+             # pero lo ideal es que el selector siempre provea los datos)
+             pass
 
-       
-        columns = list(obj.columns.all())
-        if not columns:
-            return {"total": 0, "completed": 0, "percentage": 0}
+        percentage = int((completed / total) * 100) if total > 0 else 0
+        return {"total": total, "completed": completed, "percentage": percentage}
 
-        all_cards = []
-        for col in columns:
-            all_cards.extend(list(col.cards.all()))
-            
-        total_cards = len(all_cards)
-        if total_cards == 0:
-            return {"total": 0, "completed": 0, "percentage": 0}
-
-        last_column = max(columns, key=lambda c: c.order)
-        completed_cards = len([card for card in all_cards if card.column_id == last_column.id])
-        
-        return {
-            "total": total_cards,
-            "completed": completed_cards,
-            "percentage": int((completed_cards / total_cards) * 100)
-        }
-
-# --- Tableros (ACTUALIZADOS PARA EVITAR DESFASE) ---
 
 class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
     owner = UserMinimalSerializer(read_only=True)
@@ -104,6 +81,7 @@ class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
     progress_percentage = serializers.SerializerMethodField()
     total_cards = serializers.IntegerField(source='total_cards_count_annotated', read_only=True, default=0)
     completed_cards = serializers.IntegerField(source='completed_cards_count_annotated', read_only=True, default=0)
+   
 
     class Meta:
         model = Board
@@ -118,6 +96,8 @@ class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
 
     def get_progress_percentage(self, obj: Board) -> int:
         return self.calculate_progress(obj)["percentage"]
+    
+    
 
 
 class BoardDetailSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):

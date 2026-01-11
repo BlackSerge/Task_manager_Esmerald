@@ -3,9 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { Board, Column, Card, BoardMember } from "../types/board.types";
 
 // --- Helpers de Cálculo ---
-
 const calculateBoardMetrics = (columns: Column[]) => {
-  // Manejo de estado inicial o vacío
   if (!columns || columns.length === 0) {
     return { 
       total_cards: 0, 
@@ -15,14 +13,10 @@ const calculateBoardMetrics = (columns: Column[]) => {
     };
   }
 
-  // Obtenemos todas las tarjetas de todas las secciones (columnas)
   const allCards = columns.flatMap((col) => col.cards || []);
   const total = allCards.length;
-
-  // Determinamos cuál es la última sección basándonos en el campo 'order'
   const sortedColumns = [...columns].sort((a, b) => Number(a.order) - Number(b.order));
   const lastColumnId = sortedColumns[sortedColumns.length - 1]?.id;
-  
   
   const completed = allCards.filter((card) => {
     const isInLastColumn = lastColumnId !== undefined && String(card.column) === String(lastColumnId);
@@ -38,10 +32,10 @@ const calculateBoardMetrics = (columns: Column[]) => {
 };
 
 // --- Store ---
-
 export interface BoardsStore {
   boards: Board[];
   isLoading: boolean;
+  hasHydrated: boolean; // Control de carga inicial
   error: string | null;
   setBoards: (boards: Board[]) => void;
   updateBoard: (updatedBoard: Board) => void;
@@ -62,25 +56,33 @@ export const useBoardsStore = create<BoardsStore>()(
     (set) => ({
       boards: [],
       isLoading: true,
+      hasHydrated: false, // Inicia en false para forzar Skeleton en carga limpia
       error: null,
 
-    setBoards: (newBoards) => set((state) => {
-  const updatedBoards = newBoards.map(nb => {
-    const existingBoard = state.boards.find(b => Number(b.id) === Number(nb.id));
-    const hasNewColumns = nb.columns && nb.columns.length > 0;
-    const finalColumns = hasNewColumns ? nb.columns : (existingBoard?.columns || []);
+      setBoards: (newBoards) => set((state) => {
+        const updatedBoards = newBoards.map(nb => {
+          const existingBoard = state.boards.find(b => Number(b.id) === Number(nb.id));
+          const hasNewColumns = nb.columns && nb.columns.length > 0;
+          const finalColumns = hasNewColumns ? nb.columns : (existingBoard?.columns || []);
 
-    return {
-      ...nb,
-      columns: finalColumns,
-      ...calculateBoardMetrics(finalColumns) // Recalculamos con los mejores datos disponibles
-    };
-  });
+          return {
+            ...nb,
+            columns: finalColumns,
+            ...calculateBoardMetrics(finalColumns)
+          };
+        });
 
-  return { boards: updatedBoards, isLoading: false, error: null };
-}),
+        return { 
+          boards: updatedBoards, 
+          hasHydrated: true, 
+          isLoading: false, 
+          error: null 
+        };
+      }),
+
       addBoard: (board) => set((state) => ({ 
-        boards: [{ ...board, ...calculateBoardMetrics(board.columns || []) }, ...state.boards] 
+        boards: [{ ...board, ...calculateBoardMetrics(board.columns || []) }, ...state.boards],
+        hasHydrated: true 
       })),
 
       updateBoard: (updatedBoard) => set((state) => {
@@ -90,7 +92,10 @@ export const useBoardsStore = create<BoardsStore>()(
         };
         
         const filtered = state.boards.filter(b => Number(b.id) !== Number(updatedBoard.id));
-        return { boards: [boardWithMetrics, ...filtered] };
+        return { 
+          boards: [boardWithMetrics, ...filtered],
+          hasHydrated: true 
+        };
       }),
 
       addColumn: (boardId, column) => set((state) => ({
@@ -150,7 +155,6 @@ export const useBoardsStore = create<BoardsStore>()(
         })
       })),
 
-      // ... las demás funciones siguen el mismo patrón de inmutabilidad ...
       updateCard: (columnId, cardId, payload) => set((state) => ({
         boards: state.boards.map(board => {
           if (!board.columns.some(c => c.id === columnId)) return board;
@@ -195,6 +199,7 @@ export const useBoardsStore = create<BoardsStore>()(
     {
       name: "portfolio-management-storage",
       storage: createJSONStorage(() => localStorage),
+      // IMPORTANTE: No persistimos hasHydrated ni isLoading para que se reinicien al recargar
       partialize: (state) => ({ boards: state.boards }),
     }
   )

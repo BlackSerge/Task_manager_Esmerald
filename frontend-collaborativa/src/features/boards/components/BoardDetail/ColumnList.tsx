@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { Plus, Loader2, Lock, Edit2, Trash2 } from "lucide-react";
-
 import { Column, Board, Card, CreateCardPayload } from "../../types/board.types";
 import { EditableEntity } from "../EditableEntity";
 import { TaskModal } from "./CardModal";
@@ -62,7 +61,7 @@ export const ColumnList: React.FC<Props> = ({ column, board, index, totalColumns
       label: "Eliminar lista", 
       icon: <Trash2 size={14} />, 
       variant: "danger" as const, 
-      requiresConfirmation: true, // El DropdownMenu manejará la confirmación si está implementado
+      requiresConfirmation: true, 
       onClick: handleRemoveColumn 
     }] : [])
   ], [canEdit, canDelete, handleRemoveColumn]);

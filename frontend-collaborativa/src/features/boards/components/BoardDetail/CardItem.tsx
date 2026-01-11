@@ -47,7 +47,7 @@ export const CardItem: React.FC<CardItemProps> = ({
     { label: "Alta", icon: <ChevronRight size={14} />, onClick: () => handleUpdatePriority('high') },
   ], [handleUpdatePriority]);
 
-  // Se eliminó "Editar Título" para evitar redundancia
+
   const menuOptions: DropdownOption[] = useMemo(() => [
     { label: "Editar Detalles", icon: <AlignLeft size={14} />, onClick: () => setIsModalOpen(true) },
     ...(onDelete ? [{ label: "Eliminar", icon: <Trash2 size={14} />, variant: "danger" as const, onClick: onDelete }] : [])
