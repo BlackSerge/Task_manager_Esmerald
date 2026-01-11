@@ -59,19 +59,24 @@ class BoardBusinessLogicMixin:
         return "viewer"
 
     def calculate_progress(self, obj: Board) -> dict:
-        # Forzamos el uso de las anotaciones que vienen del SELECTOR
-        total = getattr(obj, 'total_cards_count_annotated', 0) or 0
-        completed = getattr(obj, 'completed_cards_count_annotated', 0) or 0
-
-        # Si por alguna razón el objeto no tiene las anotaciones (ej. en un test simple)
-        # Solo ahí hacemos el cálculo pesado
-        if not hasattr(obj, 'total_cards_count_annotated'):
-             # ... (aquí podrías dejar tu lógica de fallback si quieres, 
-             # pero lo ideal es que el selector siempre provea los datos)
-             pass
+        total = getattr(obj, 'total_cards_count_annotated', None)
+        if total is None:
+           
+            total = Card.objects.filter(column__board=obj).count()
+        
+        completed = getattr(obj, 'completed_cards_count_annotated', None)
+        if completed is None:
+          
+            last_col = obj.columns.only('id').last()
+            completed = last_col.cards.count() if last_col else 0
 
         percentage = int((completed / total) * 100) if total > 0 else 0
-        return {"total": total, "completed": completed, "percentage": percentage}
+        
+        return {
+            "total_cards": total,
+            "completed_cards": completed,
+            "progress_percentage": percentage
+        }
 
 
 class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
@@ -79,8 +84,8 @@ class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
     members = UserMinimalSerializer(many=True, read_only=True)
     current_user_role = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
-    total_cards = serializers.IntegerField(source='total_cards_count_annotated', read_only=True, default=0)
-    completed_cards = serializers.IntegerField(source='completed_cards_count_annotated', read_only=True, default=0)
+    total_cards = serializers.SerializerMethodField()
+    completed_cards = serializers.SerializerMethodField()
    
 
     class Meta:
@@ -94,9 +99,17 @@ class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
     def get_current_user_role(self, obj: Board) -> str:
         return super().get_current_user_role(obj)
 
-    def get_progress_percentage(self, obj: Board) -> int:
-        return self.calculate_progress(obj)["percentage"]
+    def get_total_cards(self, obj):
+        return self.calculate_progress(obj)["total_cards"]
+
+    def get_completed_cards(self, obj):
+        return self.calculate_progress(obj)["completed_cards"]
     
+    def get_progress_percentage(self, obj) -> int:
+        total = getattr(obj, 'total_cards_count_annotated', 0) or 0
+        completed = getattr(obj, 'completed_cards_count_annotated', 0) or 0
+        if total <= 0: return 0
+        return int((completed / total) * 100)
     
 
 
@@ -106,8 +119,8 @@ class BoardDetailSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin
     members = BoardMemberSerializer(source='boardmember_set', many=True, read_only=True)
     current_user_role = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
-    total_cards = serializers.IntegerField(source='total_cards_count_annotated', read_only=True, default=0)
-    completed_cards = serializers.IntegerField(source='completed_cards_count_annotated', read_only=True, default=0)
+    total_cards = serializers.SerializerMethodField()
+    completed_cards = serializers.SerializerMethodField()
 
     class Meta:
         model = Board
@@ -120,5 +133,11 @@ class BoardDetailSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin
     def get_current_user_role(self, obj: Board) -> str:
         return super().get_current_user_role(obj)
 
-    def get_progress_percentage(self, obj: Board) -> int:
-        return self.calculate_progress(obj)["percentage"]
+    def get_total_cards(self, obj):
+        return self.calculate_progress(obj)["total_cards"]
+
+    def get_completed_cards(self, obj):
+        return self.calculate_progress(obj)["completed_cards"]
+
+    def get_progress_percentage(self, obj):
+        return self.calculate_progress(obj)["progress_percentage"]
