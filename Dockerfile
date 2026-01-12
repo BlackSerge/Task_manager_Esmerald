@@ -1,32 +1,31 @@
-# --- Imagen base ---
 FROM python:3.12-slim
 
-# --- Directorio de trabajo ---
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV DJANGO_SETTINGS_MODULE=config.settings.prod
+
 WORKDIR /app
 
-# --- Instalar dependencias del sistema ---
+
 RUN apt-get update && apt-get install -y \
     netcat-openbsd \
     gcc \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# --- Copiar archivos de dependencias ---
-COPY backend/pyproject.toml backend/poetry.lock* ./
 
-# --- Instalar dependencias directamente desde requirements.txt ---
 COPY backend/requirements.txt ./
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt
 
-# --- Copiar todo el proyecto ---
-COPY backend/ ./
 
-# --- Variables de entorno ---
-ENV PYTHONUNBUFFERED=1
+COPY backend/ .
 
-# --- Exponer puerto para Daphne ---
+#
+RUN mkdir -p /app/staticfiles
+
 EXPOSE 8000
 
-# --- Comando por defecto ---
-CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 config.asgi:application"]
+
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]

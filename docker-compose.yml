@@ -20,9 +20,11 @@ services:
   web:
     build:
       context: .
+      dockerfile: Dockerfile # Asegúrate de que el nombre coincida
     container_name: collaborative_backend
-    # Usamos daphne para que los WebSockets funcionen de forma nativa
-    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    # Sobrescribimos para usar desarrollo
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.dev
     volumes:
       - ./backend:/app
     ports:
@@ -32,6 +34,11 @@ services:
     depends_on:
       - db
       - redis
+    # En desarrollo, sí podemos forzar migraciones al arrancar
+    command: >
+      sh -c "python manage.py migrate && 
+             python manage.py collectstatic --noinput && 
+             daphne -b 0.0.0.0 -p 8000 config.asgi:application"
 
 volumes:
   postgres_data:

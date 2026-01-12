@@ -1,28 +1,30 @@
+import os
+import dj_database_url
 from pathlib import Path
 import environ
 from datetime import timedelta
-import os
 
 # -----------------------------
-# Base directory
+# Base directory and env
 # -----------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-# -----------------------------
-# Environment variables
-# -----------------------------
 env = environ.Env(DEBUG=(bool, False))
-environ.Env.read_env(BASE_DIR / ".env")
 
+# Carga el .env si existe (útil para desarrollo local)
+if os.path.exists(BASE_DIR / ".env"):
+    environ.Env.read_env(BASE_DIR / ".env")
+
+# -----------------------------
+# Basic Config
+# -----------------------------
 SECRET_KEY = env("SECRET_KEY", default="django-insecure-placeholder")
-DEBUG = env.bool("DEBUG", default=True)
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
+DEBUG = env.bool("DEBUG", default=False) # Por defecto False por seguridad
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 # -----------------------------
 # Installed apps
 # -----------------------------
 INSTALLED_APPS = [
-    # Django
     "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -32,16 +34,15 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     
     # Third-party
+    "rest_framework",
     "rest_framework_simplejwt",
     "channels",
     "corsheaders",
-    "cloudinary",
-    "cloudinary_storage",
     
     # Local apps
-    "boards",
-    "chat",
-    "core",
+    "boards.apps.BoardsConfig", # Es mejor usar la ruta completa a la AppConfig
+    "chat.apps.ChatConfig",
+    "core.apps.CoreConfig",
 ]
 
 # -----------------------------
@@ -50,7 +51,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware", # Crítico para estáticos
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -65,9 +66,13 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 ASGI_APPLICATION = "config.asgi.application"
 
+
+
 # -----------------------------
-# Templates
+# Templates 
 # -----------------------------
+
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -79,40 +84,55 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-            ]
+            ],
         },
     },
 ]
 
+
+
 # -----------------------------
-# Database
+# Database (Lógica dj-database-url)
 # -----------------------------
 DATABASES = {
-    "default": {
-        "ENGINE": env("DB_ENGINE", default="django.db.backends.postgresql"),
-        "NAME": env("DB_NAME", default="collaborative_db"),
-        "USER": env("DB_USER", default="Sergio"),
-        "PASSWORD": env("DB_PASSWORD", default="SxD13052023"),
-        "HOST": env("DB_HOST", default="db"),
-        "PORT": env("DB_PORT", default="5432"),
-    }
+    'default': dj_database_url.config(
+        default=f"postgres://{env('DB_USER', default='')}:{env('DB_PASSWORD', default='')}@{env('DB_HOST', default='db')}:{env('DB_PORT', default='5432')}/{env('DB_NAME', default='')}",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # -----------------------------
 # Channels (Redis)
 # -----------------------------
+REDIS_URL = env("REDIS_URL", default=f"redis://{env('REDIS_HOST', default='redis')}:{env('REDIS_PORT', default='6379')}/1")
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(env("REDIS_HOST", default="redis"), env.int("REDIS_PORT", default=6379))]
+            "hosts": [REDIS_URL],
+            "symmetric_encryption_keys": [SECRET_KEY[:32]] if not DEBUG else None,
         },
     }
 }
 
 # -----------------------------
-# Django REST Framework + JWT
+# Static & Media
 # -----------------------------
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# -----------------------------
+# CORS & Auth
+# -----------------------------
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:5173"])
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -121,56 +141,12 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-# -----------------------------
-# Static files
-# -----------------------------
-STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "static"]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-# -----------------------------
-# Media files
-# -----------------------------
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
-# -----------------------------
-# CORS
-# -----------------------------
-
-CORS_ALLOW_ALL_ORIGINS = False
-
-# 2. ESPECIFICA TU FRONTEND
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    "http://localhost:4200",
-    "http://127.0.0.1:4200",
-]
-
-
-CORS_ALLOW_CREDENTIALS = True
-
-
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "authorization",
-    "content-type",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
-# -----------------------------
-# Security / Auto Field
-# -----------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# (Logs y Validators se mantienen igual al final del archivo)
 # -----------------------------
 # Logging
 # -----------------------------
@@ -188,7 +164,6 @@ LOGGING = {
 
 # Validators
 
-# settings.py
 
 AUTH_PASSWORD_VALIDATORS = [
     {
