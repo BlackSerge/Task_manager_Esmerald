@@ -94,9 +94,11 @@ TEMPLATES = [
 # -----------------------------
 # Database (Lógica dj-database-url)
 # -----------------------------
+DB_URL = env("DATABASE_URL", default=f"postgres://{env('DB_USER', default='')}:{env('DB_PASSWORD', default='')}@{env('DB_HOST', default='db')}:{env('DB_PORT', default='5432')}/{env('DB_NAME', default='')}")
+
 DATABASES = {
     'default': dj_database_url.config(
-        default=f"postgres://{env('DB_USER', default='')}:{env('DB_PASSWORD', default='')}@{env('DB_HOST', default='db')}:{env('DB_PORT', default='5432')}/{env('DB_NAME', default='')}",
+        default=DB_URL,
         conn_max_age=600,
         conn_health_checks=True,
     )
@@ -164,27 +166,13 @@ LOGGING = {
 
 # Validators
 
-
 AUTH_PASSWORD_VALIDATORS = [
+    { 'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator' },
+    { 'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8} },
+    { 'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator' },
+    { 'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator' },
+    # --- VALIDACIÓN ROBUSTA PROFESIONAL ---
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {'min_length': 8},
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-    # --- VALIDACIÓN ROBUSTA PERSONALIZADA ---
-    {
-        'NAME': 'django.core.validators.RegexValidator',
-        'OPTIONS': {
-            'regex': r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
-            'message': 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.',
-        }
+        'NAME': 'core.validators.ComplexityPasswordValidator', # Ajusta la ruta según tu estructura
     },
 ]

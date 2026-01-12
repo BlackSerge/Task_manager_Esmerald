@@ -16,11 +16,9 @@ DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 #DB en producción usa SSL
-DATABASES['default'] = dj_database_url.config(
-    conn_max_age=600,
-    ssl_require=True
-)
-
+DATABASES['default']['OPTIONS'] = {
+    'sslmode': 'require',
+}
 
 # --- Seguridad Estricta ---
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
