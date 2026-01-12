@@ -19,7 +19,7 @@ export interface DropdownOption {
 interface Props {
   options: DropdownOption[];
   triggerClassName?: string;
-  children?: React.ReactNode; // 👈 Añadido para trigger personalizado
+  children?: React.ReactNode; 
 }
 
 export const DropdownMenu: React.FC<Props> = ({ options, triggerClassName, children }) => {

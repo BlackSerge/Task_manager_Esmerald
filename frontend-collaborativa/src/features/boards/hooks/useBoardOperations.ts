@@ -47,14 +47,18 @@ export const useBoardOperations = (boardId?: string) => {
     }
   });
 
-  const updateCardMutation = useMutation({
-    mutationFn: (p: { cardId: number; payload: Partial<Card> }) =>
-      boardService.updateCard(p.cardId, p.payload),
-    onSuccess: (updatedCard) => {
-      store.updateCard(updatedCard.column, updatedCard.id, updatedCard);
-      sync();
-    }
-  });
+ const updateCardMutation = useMutation({
+  mutationFn: (p: { cardId: number; columnId: number; payload: Partial<Card> }) =>
+    boardService.updateCard(p.cardId, p.payload),
+  onSuccess: (updatedCard, variables) => {
+    const colId = updatedCard?.column || variables.columnId;
+    store.updateCard(colId, updatedCard.id, updatedCard);
+    sync();
+  },
+  onMutate: async (variables) => {
+    store.updateCard(variables.columnId, variables.cardId, variables.payload);
+  }
+});
 
   const deleteCardMutation = useMutation({
     mutationFn: (p: { columnId: number; cardId: number }) => 
@@ -66,13 +70,12 @@ export const useBoardOperations = (boardId?: string) => {
   });
 
   const moveCardMutation = useMutation({
-    mutationFn: (p: { cardId: number; fromColumnId: number; toColumnId: number; order: number }) =>
-      boardService.moveCard(p.cardId, p.toColumnId, p.order),
-    onSuccess: (_, v) => {
-      store.moveCard(v.fromColumnId, v.cardId, v.toColumnId, v.order);
-      sync();
-    }
-  });
+  mutationFn: (p: { cardId: number; fromColumnId: number; toColumnId: number; order: number }) =>
+    boardService.moveCard(p.cardId, p.toColumnId, p.order),
+  onSuccess: (_, v) => {
+    store.moveCard(v.fromColumnId, v.cardId, v.toColumnId, v.order);
+  }
+});
 
   // --- 3. OPERACIONES DE MIEMBROS ---
 

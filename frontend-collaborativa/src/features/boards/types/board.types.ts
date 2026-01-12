@@ -51,10 +51,6 @@ export interface Board {
   updated_at: string;
 }
 
-/**
- * DATA TRANSFER OBJECTS (DTOs) / PAYLOADS
- * Representan la estructura de los datos para las peticiones HTTP.
- */
 
 export interface InviteMemberDto {
   user_id: number;

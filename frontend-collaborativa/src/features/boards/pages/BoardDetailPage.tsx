@@ -1,34 +1,17 @@
-// features/boards/pages/BoardDetailPage.tsx
-import React from "react";
+import React, { useState } from "react";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { motion, AnimatePresence } from "framer-motion";
+import { Search, RefreshCcw, ZoomIn, ZoomOut, Loader2 } from "lucide-react";
 import { Navbar } from "@/shared/layout/components/Navbar";
-import { CreateColumnForm } from "../components/BoardDetail/CreateColumnForm";
-import { ColumnList } from "../components/BoardDetail/ColumnList";
 import { ChatPanel } from "@/features/chat/components/ChatPanel";
 import { BoardDetailSkeleton } from "../components/BoardDetail/BoardDetailSkeleton";
+import { ColumnList } from "../components/BoardDetail/ColumnList";
+import { CreateColumnForm } from "../components/BoardDetail/CreateColumnForm";
 import { useBoardDetailPageManager } from "../hooks/useBoardDetailPageManager";
-import { Variants } from "framer-motion";
-
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: { 
-    opacity: 1, 
-    transition: { staggerChildren: 0.05, when: "beforeChildren" } 
-  },
-};
-
-const columnVariants: Variants = {
-  hidden: { opacity: 0, y: 20, scale: 0.98 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: "spring", stiffness: 100, damping: 15 },
-  },
-};
 
 export const BoardDetailPage: React.FC = () => {
+  const [isOverviewMode, setIsOverviewMode] = useState(false);
+
   const {
     board,
     boardId,
@@ -39,133 +22,186 @@ export const BoardDetailPage: React.FC = () => {
     showNotFound,
     showSyncing,
     handleDragEnd,
-    refetch
+    refetch,
   } = useBoardDetailPageManager();
 
-  if (showSkeleton) {
-    return (
-      <div className="fixed inset-0 flex flex-col bg-[#f8fafc]">
-        <Navbar />
-        <BoardDetailSkeleton />
-      </div>
-    );
-  }
+  if (showSkeleton) return <BoardDetailSkeleton />;
+  if (showNotFound || !board) return <NotFoundState />;
 
-  if (showNotFound || (!board && !showSkeleton)) {
-    return (
-      <div className="h-screen flex flex-col bg-[#f8fafc]">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center p-6">
-          <h2 className="text-xl md:text-2xl font-black text-emerald-950/20 uppercase tracking-[0.3em] text-center">
-            Tablero no encontrado
-          </h2>
-        </div>
-      </div>
-    );
-  }
+  const ZOOM_FACTOR = 0.65;
 
   return (
     <div className="fixed inset-0 flex flex-col bg-[#f8fafc] overflow-hidden select-none">
       <Navbar />
 
-      {/* SYNC INDICATOR - Optimizado para no estorbar en móvil */}
-      <AnimatePresence>
-        {(showSyncing || isError) && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-20 left-0 right-0 z-[200] flex justify-center pointer-events-none"
-          >
-            <div className={`
-              mt-4 flex items-center gap-3 px-4 py-2 rounded-2xl border backdrop-blur-md shadow-xl pointer-events-auto
-              ${isError ? "bg-red-50/90 border-red-200" : "bg-white/90 border-emerald-100"}
-            `}>
-              <div className="relative flex items-center justify-center">
-                <div className={`w-2 h-2 rounded-full ${isError ? "bg-red-500" : "bg-emerald-500 animate-pulse"}`} />
-              </div>
-              <span className={`text-[10px] font-black uppercase tracking-widest ${isError ? "text-red-700" : "text-emerald-800"}`}>
-                {isError ? "Error de sincronización" : "Guardando cambios..."}
-              </span>
-              {isError && (
-                <button onClick={() => refetch()} className="p-1 hover:bg-red-100 rounded-lg text-red-600 transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <SyncStatusIndicator isSyncing={showSyncing} isError={isError} onRetry={refetch} />
 
-      <div className="flex-1 flex relative overflow-hidden">
-        <main className="flex-1 h-full overflow-hidden">
-          <DragDropContext onDragEnd={handleDragEnd}>
-            {/* CONTENEDOR DE COLUMNAS (THE MAGIC PART):
-                1. snap-x snap-mandatory: Permite que las columnas se "peguen" al centro al hacer scroll en móvil.
-                2. touch-pan-x: Evita que el scroll vertical del navegador interfiera con el arrastre.
-                3. flex-nowrap: Obliga a las columnas a estar en una sola fila horizontal.
-            */}
-            <motion.div 
-              variants={containerVariants} 
-              initial="hidden" 
-              animate="visible"
-              className="h-full overflow-x-auto flex flex-nowrap items-start p-4 md:p-10 gap-4 md:gap-8 
-                         snap-x snap-mandatory scroll-smooth custom-scrollbar touch-pan-x"
-            >
-              {board?.columns.map((column, idx) => (
-                <motion.div 
-                  key={`col-${column.id}`} 
-                  variants={columnVariants} 
-                  layout 
-                  className="h-full shrink-0 w-[85vw] xs:w-[320px] md:w-80 snap-center"
-                >
-                  <ColumnList 
-                    column={column} 
-                    board={board} 
-                    index={idx} 
-                    totalColumns={board.columns.length} 
-                  />
-                </motion.div>
-              ))}
-              
-              {/* Espacio para crear nueva columna */}
-              <motion.div 
-                variants={columnVariants} 
-                className="shrink-0 w-[85vw] xs:w-[320px] md:w-80 pr-10 snap-center"
+      {/* CONTENEDOR DE SCROLL MAESTRO:
+          - touch-pan-x: Habilita el gesto nativo de deslizamiento lateral.
+          - overflow-x-auto: Permite el scroll.
+          - custom-scrollbar: Para ocultar la barra en móviles pero mantener el gesto.
+      */}
+      <div className="flex-1 relative">
+        <div 
+          className={`
+            absolute inset-0 overflow-x-auto overflow-y-hidden 
+            touch-pan-x overscroll-x-contain custom-scrollbar
+            ${isOverviewMode ? "bg-slate-100/40" : "snap-x snap-mandatory"}
+          `}
+        >
+          <main className="h-full min-w-full">
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <motion.div
+                initial={false}
+                animate={{
+                  scale: isOverviewMode ? ZOOM_FACTOR : 1,
+                  width: isOverviewMode ? `${100 / ZOOM_FACTOR}%` : "100%",
+                  paddingTop: isOverviewMode ? "0px" : "0px", // Pegado absoluto
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 35 }}
+                style={{ originX: 0, originY: 0 }}
+                className="h-full flex items-stretch gap-4 px-6"
               >
-                <CreateColumnForm boardId={String(boardId)} />
-              </motion.div>
-            </motion.div>
-          </DragDropContext>
-        </main>
+                {board.columns.map((column, idx) => (
+                  <div
+                    key={column.id}
+                    className={`
+                      shrink-0 transition-all duration-500 py-4
+                      ${isOverviewMode 
+                        ? "w-[260px]" 
+                        : "w-[85vw] sm:w-[320px] snap-center"
+                      }
+                    `}
+                  >
+                    <div className="h-full"> 
+                      <ColumnList
+                        column={column}
+                        board={board}
+                        index={idx}
+                        totalColumns={board.columns.length}
+                      />
+                    </div>
+                  </div>
+                ))}
 
-        {/* OVERLAY DEL CHAT PARA MÓVIL */}
+                <div className={`shrink-0 py-4 ${isOverviewMode ? "w-[260px] pr-80" : "w-[85vw] sm:w-[320px] snap-center pr-10"}`}>
+                  <CreateColumnForm boardId={String(boardId)} />
+                </div>
+              </motion.div>
+            </DragDropContext>
+          </main>
+        </div>
+
+        {/* MÁSCARA DE GRADIENTE (Solo visual, no bloquea el touch) */}
         <AnimatePresence>
-          {isChatOpen && (
+          {isOverviewMode && (
             <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 top-20 bg-emerald-950/40 backdrop-blur-sm z-[140]" 
-              onClick={closeChat} 
+              className="absolute inset-0 z-[5] pointer-events-none shadow-[inset_40px_0_40px_-20px_#f8fafc,inset_-40px_0_40px_-20px_#f8fafc]"
             />
           )}
         </AnimatePresence>
 
-        {/* CHAT PANEL: w-full en móvil para UX nativa */}
-        <aside className={`
-            fixed top-20 right-0 bottom-0 z-[150] w-full md:w-[450px] bg-white 
-            shadow-[-20px_0_60px_rgba(6,78,59,0.15)] md:rounded-tl-[4.5rem] 
-            transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1)
-            ${isChatOpen ? "translate-x-0" : "translate-x-full"}
-        `}>
-          <div className="flex flex-col h-full w-full bg-white">
-            {isChatOpen && <ChatPanel boardId={String(boardId)} />}
-          </div>
-        </aside>
+        {/* BOTÓN DE ZOOM */}
+        <motion.button
+          layout
+          onClick={() => setIsOverviewMode((prev) => !prev)}
+          whileTap={{ scale: 0.9 }}
+          className={`
+            fixed bottom-8 right-6 z-[100]
+            w-12 h-12 rounded-2xl shadow-2xl border backdrop-blur-md
+            flex items-center justify-center transition-all duration-500
+            ${isOverviewMode 
+              ? "bg-emerald-600 border-emerald-400 text-white shadow-emerald-500/20" 
+              : "bg-white/90 border-slate-200 text-slate-500"
+            }
+          `}
+        >
+          {isOverviewMode ? <ZoomIn size={20} /> : <ZoomOut size={20} />}
+        </motion.button>
       </div>
+
+      {/* PANEL DE CHAT */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeChat}
+              className="fixed inset-0 top-16 bg-black/20 backdrop-blur-[2px] z-[140]"
+            />
+            <motion.aside
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed top-16 right-0 bottom-0 z-[150] w-[85vw] sm:w-[400px] bg-white shadow-2xl flex flex-col border-l border-slate-100"
+            >
+              <ChatPanel boardId={String(boardId)} />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
+
+/* ===================== SUBCOMPONENTES ===================== */
+
+const SyncStatusIndicator: React.FC<{
+  isSyncing: boolean;
+  isError: boolean;
+  onRetry: () => void;
+}> = ({ isSyncing, isError, onRetry }) => (
+  <AnimatePresence>
+    {(isSyncing || isError) && (
+      <motion.div
+        initial={{ opacity: 0, y: -20, x: "-50%" }}
+        animate={{ opacity: 1, y: 0, x: "-50%" }}
+        exit={{ opacity: 0, y: -20, x: "-50%" }}
+        className="fixed top-24 left-1/2 z-[600] pointer-events-none"
+      >
+        <div className={`
+          flex items-center gap-3 px-4 py-2 rounded-2xl border backdrop-blur-xl shadow-xl pointer-events-auto
+          ${isError ? "bg-red-50 border-red-200 text-red-900" : "bg-white/90 border-emerald-100 text-emerald-900"}
+        `}>
+          {isError ? (
+            <RefreshCcw className="w-4 h-4 text-red-500 animate-spin" />
+          ) : (
+            <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
+          )}
+          <span className="text-[10px] font-black uppercase tracking-widest">
+            {isError ? "Error" : "Syncing"}
+          </span>
+          {isError && (
+            <button onClick={onRetry} className="bg-red-600 text-white px-2 py-1 rounded-lg text-[8px] font-black uppercase">
+              Retry
+            </button>
+          )}
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+const NotFoundState: React.FC = () => (
+  <div className="h-screen flex flex-col bg-[#f8fafc]">
+    <Navbar />
+    <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+      <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-6">
+        <Search className="text-emerald-500 w-10 h-10" />
+      </div>
+      <h2 className="text-xl font-black text-emerald-950 uppercase tracking-tighter mb-2">No encontrado</h2>
+      <button 
+        onClick={() => (window.location.href = "/")} 
+        className="px-8 py-3 bg-emerald-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg"
+      >
+        Volver
+      </button>
+    </div>
+  </div>
+);

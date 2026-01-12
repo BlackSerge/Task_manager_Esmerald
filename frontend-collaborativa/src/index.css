@@ -8,11 +8,26 @@ animate-shimmer {
   animation: shimmer 2s infinite;
 }
 
-/* Estilo para la clase custom-scrollbar que pusimos en el ChatPanel */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px; /* Ultra fina */
-}
+@media (max-width: 768px) {
+  /* Forzamos a que el contenido se adapte al ancho pequeño */
+  .column-container {
+    padding: 0.5rem !important;
+  }
 
+  /* Hacemos que los títulos de las columnas sean muy compactos */
+  .column-header h3 {
+    font-size: 0.75rem !important;
+    letter-spacing: 0 !important;
+  }
+
+  /* Reducimos los espacios entre tarjetas para ganar verticalidad */
+  .cards-container {
+    gap: 0.5rem !important;
+  }
+}
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent; 
 }
@@ -32,9 +47,10 @@ animate-shimmer {
   scrollbar-color: #10b981 transparent;
 }
 
-.custom-scrollbar::-webkit-scrollbar:horizontal {
-  height: 6px; /* Altura del scroll horizontal del tablero */
-}
+.custom-scrollbar::-webkit-scrollbar {
+    height: 4px;
+  }
+
 
 /* Evita que el body haga scroll extraño mientras arrastras */
 body:has([data-rbd-drag-handle-context-id]) {
@@ -74,3 +90,4 @@ body:has([data-rbd-drag-handle-context-id]) {
   user-select: none;
   -webkit-user-select: none;
 }
+

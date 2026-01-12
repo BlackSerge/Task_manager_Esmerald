@@ -1,30 +1,34 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { 
   Trash2, CheckCircle2, Circle, 
-  ShieldCheck, ShieldAlert, User, AlignLeft, ChevronRight 
+  ShieldCheck, ShieldAlert, User, AlignLeft, ChevronRight, ArrowRightLeft 
 } from "lucide-react";
 
-import { Card, BoardMember, PriorityLevel, CreateCardPayload } from "../../types/board.types";
+import { Card, BoardMember, PriorityLevel, CreateCardPayload, Board } from "../../types/board.types";
 import { DraggableWrapper } from "@/shared/components/dnd/DraggableWrapper";
 import { PriorityBadge } from "../Board/PriorityBadge";
 import { DateDisplay } from "@/shared/components/ui/DateDisplay";
 import { DropdownMenu, DropdownOption } from "@/shared/components/ui/DropdownMenu";
 import { TaskModal } from "./CardModal";
+import { MoveCardModal } from "./MoveCardModal"; // Importamos el nuevo modal
+import { useBoardOperations } from "../../hooks/useBoardOperations";
 
 interface CardItemProps {
   card: Card;
   index: number;
+  board: Board;
   isColumnDone: boolean;
   onDelete?: () => void; 
   onUpdate?: (payload: Partial<Card>) => void; 
 }
 
 export const CardItem: React.FC<CardItemProps> = ({ 
-  card, index, isColumnDone, onDelete, onUpdate 
+  card, index, board, isColumnDone, onDelete, onUpdate 
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const { moveCard } = useBoardOperations(String(board.id));
 
-  // Derivamos el estado de completado
   const effectiveIsCompleted = card.is_completed || isColumnDone;
 
   const handleToggleComplete = useCallback((e: React.MouseEvent) => {
@@ -47,9 +51,13 @@ export const CardItem: React.FC<CardItemProps> = ({
     { label: "Alta", icon: <ChevronRight size={14} />, onClick: () => handleUpdatePriority('high') },
   ], [handleUpdatePriority]);
 
-
   const menuOptions: DropdownOption[] = useMemo(() => [
     { label: "Editar Detalles", icon: <AlignLeft size={14} />, onClick: () => setIsModalOpen(true) },
+    { 
+      label: "Mover a...", 
+      icon: <ArrowRightLeft size={14} />, 
+      onClick: () => setIsMoveModalOpen(true) 
+    },
     ...(onDelete ? [{ label: "Eliminar", icon: <Trash2 size={14} />, variant: "danger" as const, onClick: onDelete }] : [])
   ], [onDelete]);
 
@@ -105,24 +113,17 @@ export const CardItem: React.FC<CardItemProps> = ({
               </div>
             </div>
 
-            <div className="px-1">
-              {/* Título: Ahora es un elemento estático que abre el modal al hacer clic */}
-              <h3 
-                onClick={() => setIsModalOpen(true)}
-                className={`text-[14px] font-black leading-snug block mb-2 tracking-tight cursor-pointer hover:text-emerald-700 transition-colors
+            <div className="px-1" onClick={() => setIsModalOpen(true)}>
+              <h3 className={`text-[14px] font-black leading-snug block mb-2 tracking-tight cursor-pointer hover:text-emerald-700 transition-colors
                   ${effectiveIsCompleted ? "text-slate-400 line-through decoration-slate-300" : "text-emerald-950"}
-                `}
-              >
+                `}>
                 {card.title}
               </h3>
 
-              <div 
-                className={`mt-2 text-[11.5px] leading-relaxed font-medium mb-3 block cursor-pointer hover:bg-emerald-50/60 rounded-xl p-2 transition-all border border-transparent hover:border-emerald-100/50
+              <div className={`mt-2 text-[11.5px] leading-relaxed font-medium mb-3 block cursor-pointer hover:bg-emerald-50/60 rounded-xl p-2 transition-all border border-transparent hover:border-emerald-100/50
                   ${effectiveIsCompleted ? "text-slate-300" : "text-emerald-600/75"}
                   ${!card.description && "italic opacity-50"}
-                `}
-                onClick={() => setIsModalOpen(true)}
-              >
+                `}>
                 {card.description || "Añadir una descripción detallada..."}
               </div>
 
@@ -135,6 +136,7 @@ export const CardItem: React.FC<CardItemProps> = ({
         )}
       </DraggableWrapper>
 
+   
       {isModalOpen && (
         <TaskModal 
           key={`edit-${card.id}`}
@@ -142,7 +144,25 @@ export const CardItem: React.FC<CardItemProps> = ({
           onClose={() => setIsModalOpen(false)}
           onSave={handleModalSave}
           initialData={card} 
-          columnId={0} 
+          columnId={card.column}
+        />
+      )}
+
+     
+      {isMoveModalOpen && (
+        <MoveCardModal
+          isOpen={isMoveModalOpen}
+          onClose={() => setIsMoveModalOpen(false)}
+          card={card}
+          board={board}
+          onMove={(toColumnId, order) => {
+            moveCard({
+              cardId: card.id,
+              fromColumnId: card.column,
+              toColumnId: toColumnId,
+              order: order
+            });
+          }}
         />
       )}
     </>
