@@ -1,4 +1,3 @@
-// features/boards/hooks/useBoardsPageManager.ts
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBoards, useUpdateBoard, useDeleteBoard } from "./boardHooks";
@@ -9,30 +8,52 @@ export const useBoardsPageManager = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; title: string } | null>(null);
 
-  // 1. Data Fetching
+  // Store & API
   const { isPending, isError, refetch } = useBoards();
-  
-  // 2. Store Data
-  const boards = useBoardsStore((state) => state.boards);
-  const hasHydrated = useBoardsStore((state) => state.hasHydrated);
-
-  // 3. Mutaciones
+  const { boards, hasHydrated, recentIds, trackVisit } = useBoardsStore();
   const deleteMutation = useDeleteBoard();
   const updateMutation = useUpdateBoard();
 
-  // 4. Lógica de filtrado
+  /**
+   * Lógica de ordenamiento y filtrado
+   * Prioridad: 
+   * 1. Coincidencia con búsqueda.
+   * 2. Orden de navegación reciente (recentIds).
+   * 3. Fecha de actualización/creación real.
+   */
   const filteredBoards = useMemo(() => {
-    return boards.filter((board) =>
-      board.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [boards, searchTerm]);
+    const query = searchTerm.toLowerCase();
+    const filtered = boards.filter((b) => b.title.toLowerCase().includes(query));
 
-  // 5. Handlers
-  const handleBoardClick = (id: number | string) => navigate(`/boards/${id}`);
+    return [...filtered].sort((a, b) => {
+      const idA = String(a.id);
+      const idB = String(b.id);
+
+      const indexA = recentIds.indexOf(idA);
+      const indexB = recentIds.indexOf(idB);
+
+      // Si ambos están en recientes, manda el que se visitó más tarde (índice menor)
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+
+      // Si ninguno es reciente, orden por fecha real
+      const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+      const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+      return timeB - timeA;
+    });
+  }, [boards, searchTerm, recentIds]);
+
+  // Handlers
+  const handleBoardClick = (id: number | string) => {
+    trackVisit(String(id)); // Actualiza el orden local sin tocar la DB
+    navigate(`/boards/${id}`);
+  };
 
   const handleEditTitle = (id: string, newTitle: string) => {
-    if (newTitle?.trim()) {
-      updateMutation.mutate({ id: Number(id), title: newTitle.trim() });
+    const cleanTitle = newTitle?.trim();
+    if (cleanTitle) {
+      updateMutation.mutate({ id: Number(id), title: cleanTitle });
     }
   };
 
@@ -45,7 +66,6 @@ export const useBoardsPageManager = () => {
   };
 
   return {
-    boards,
     filteredBoards,
     searchTerm,
     setSearchTerm,

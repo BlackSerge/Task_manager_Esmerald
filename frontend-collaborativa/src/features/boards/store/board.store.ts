@@ -32,6 +32,7 @@ const calculateBoardMetrics = (columns: Column[]) => {
 
 export interface BoardsStore {
   boards: Board[];
+  recentIds: string[]; // Nuevo: Historial de IDs visitados
   isLoading: boolean;
   hasHydrated: boolean;
   error: string | null;
@@ -46,16 +47,23 @@ export interface BoardsStore {
   removeCard: (columnId: number, cardId: number) => void;
   moveCard: (fromColumnId: number, cardId: number, toColumnId: number, newIndex: number) => void;
   addMemberToBoard: (boardId: number, member: BoardMember) => void;
-  syncBoardMetrics: (boardId: number) => void; 
+  syncBoardMetrics: (boardId: number) => void;
+  trackVisit: (boardId: string) => void; // Nuevo: Acción para registrar visitas
 }
 
 export const useBoardsStore = create<BoardsStore>()(
   persist(
     (set) => ({
       boards: [],
+      recentIds: [],
       isLoading: true,
       hasHydrated: false,
       error: null,
+
+      // Acción para mover la board al principio de "Recientes" localmente
+      trackVisit: (boardId) => set((state) => ({
+        recentIds: [boardId, ...state.recentIds.filter(id => id !== boardId)].slice(0, 12)
+      })),
 
       setBoards: (newBoards) => set((state) => {
         const updatedBoards = (newBoards as RawBoardResponse[]).map((nb) => {
@@ -71,7 +79,6 @@ export const useBoardsStore = create<BoardsStore>()(
             id: nb.id!,
             title: nb.title!,
             columns: finalColumns,
-            // Normalización de campos annotated de Django
             total_cards: Number(localMetrics?.total_cards ?? nb.total_cards ?? nb.total_cards_count_annotated ?? 0),
             completed_cards: Number(localMetrics?.completed_cards ?? nb.completed_cards ?? nb.completed_cards_count_annotated ?? 0),
             progress_percentage: Number(localMetrics?.progress_percentage ?? nb.progress_percentage ?? 0),
@@ -126,10 +133,24 @@ export const useBoardsStore = create<BoardsStore>()(
 
       moveCard: (fromColumnId, cardId, toColumnId) => set((state) => ({
         boards: state.boards.map(b => {
-          const hasCols = b.columns?.some(c => c.id === fromColumnId || c.id === toColumnId);
-          if (!hasCols) return b;
-          // Lógica de movimiento omitida por brevedad, pero debe llamar a calculateBoardMetrics al final
-          return b; 
+          const fromCol = b.columns?.find(c => c.id === fromColumnId);
+          const toCol = b.columns?.find(c => c.id === toColumnId);
+          if (!fromCol || !toCol) return b;
+
+          const card = fromCol.cards?.find(c => c.id === cardId);
+          if (!card) return b;
+
+          const newCols = b.columns.map(col => {
+            if (col.id === fromColumnId) {
+              return { ...col, cards: col.cards.filter(c => c.id !== cardId) };
+            }
+            if (col.id === toColumnId) {
+              return { ...col, cards: [...(col.cards || []), { ...card, column: toColumnId }] };
+            }
+            return col;
+          });
+
+          return { ...b, columns: newCols, ...calculateBoardMetrics(newCols) };
         })
       })),
 
@@ -159,7 +180,11 @@ export const useBoardsStore = create<BoardsStore>()(
     {
       name: "portfolio-management-storage",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ boards: state.boards }),
+      // Ahora persistimos también recentIds para que no se pierda el orden al refrescar
+      partialize: (state) => ({ 
+        boards: state.boards, 
+        recentIds: state.recentIds 
+      }),
     }
   )
 );

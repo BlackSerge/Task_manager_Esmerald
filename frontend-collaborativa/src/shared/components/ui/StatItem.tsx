@@ -5,6 +5,7 @@ interface StatItemProps {
   label: string;
   value: string | number;
   border?: boolean;
+  className?: string;
 }
 
 export const StatItem: React.FC<StatItemProps> = ({ icon, label, value, border }) => (

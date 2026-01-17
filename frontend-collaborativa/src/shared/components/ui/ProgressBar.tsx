@@ -2,6 +2,7 @@ import React from "react";
 
 interface ProgressBarProps {
   percentage: number;
+  height?: string;
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({ percentage }) => (
