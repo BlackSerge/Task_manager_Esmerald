@@ -9,33 +9,27 @@ from django.utils import timezone
 from ..models import Board, Column, Card, BoardMember
 from .websocket_service import notify_board_change, notify_card_movement
 
-# --- Utilidades de Validación ---
+ROLE_WEIGHTS = {
+    BoardMember.Role.ADMIN: 3,
+    BoardMember.Role.EDITOR: 2,
+    BoardMember.Role.VIEWER: 1,
+}
+
 
 def _validate_permission(board: Board, user: AbstractBaseUser, min_role: str = 'editor') -> None:
-    """
-    Valida permisos con jerarquía numérica para evitar degradación de roles.
-    """
+    """Validates user has sufficient role weight on the board."""
     if board.owner == user:
         return
 
     membership = BoardMember.objects.filter(board=board, user=user).first()
-    
+
     if not membership:
         raise PermissionDenied("No eres miembro de este tablero.")
 
-    # Definimos el peso de cada rol para comparaciones lógicas
-    ROLE_WEIGHTS = {
-        BoardMember.Role.ADMIN: 3,
-        BoardMember.Role.EDITOR: 2,
-        BoardMember.Role.VIEWER: 1,
-    }
-
-    # Convertimos el rol requerido a su peso numérico
     required_weight = ROLE_WEIGHTS.get(
-        BoardMember.Role.ADMIN if min_role == 'admin' else BoardMember.Role.EDITOR, 
+        BoardMember.Role.ADMIN if min_role == 'admin' else BoardMember.Role.EDITOR,
         2
     )
-    
     user_weight = ROLE_WEIGHTS.get(membership.role, 0)
 
     if user_weight < required_weight:
@@ -43,12 +37,10 @@ def _validate_permission(board: Board, user: AbstractBaseUser, min_role: str = '
 
 
 def _touch_board(board: Board) -> None:
-    """Actualiza la actividad real del tablero."""
+    """Updates the board's last_activity timestamp."""
     board.last_activity = timezone.now()
     board.save(update_fields=['last_activity'])
 
-
-# --- Servicios de Tablero ---
 
 def create_board(*, title: str, user: AbstractBaseUser) -> Board:
     if not user or user.is_anonymous:
@@ -56,27 +48,24 @@ def create_board(*, title: str, user: AbstractBaseUser) -> Board:
 
     with transaction.atomic():
         board = Board.objects.create(title=title, owner=user)
-        # Aseguramos que el creador sea ADMIN
         BoardMember.objects.get_or_create(
             user=user,
             board=board,
             defaults={'role': BoardMember.Role.ADMIN}
         )
-        
+
     return cast(Board, board)
 
-
-# --- Servicios de Columnas ---
 
 def create_column(*, board_id: int, title: str, user: AbstractBaseUser) -> Column:
     board = get_object_or_404(Board, pk=board_id)
     _validate_permission(board, user, min_role='editor')
-    
+
     with transaction.atomic():
         last_order = Column.objects.filter(board=board).aggregate(Max("order"))["order__max"]
         column = Column.objects.create(
-            board=board, 
-            title=title, 
+            board=board,
+            title=title,
             order=(last_order or 0.0) + 1.0
         )
         _touch_board(board)
@@ -86,14 +75,14 @@ def create_column(*, board_id: int, title: str, user: AbstractBaseUser) -> Colum
 
 
 def update_column(*, column_id: int, title: str, user: AbstractBaseUser) -> Column:
-    """Actualiza una columna y notifica a todos los miembros."""
+    """Updates a column title and notifies connected clients."""
     column = get_object_or_404(Column.objects.select_related('board'), pk=column_id)
     board = column.board
     _validate_permission(board, user, min_role='editor')
 
     with transaction.atomic():
         column.title = title
-        column.save()
+        column.save(update_fields=['title'])
         _touch_board(board)
 
     notify_board_change(board_id=board.id)
@@ -101,7 +90,7 @@ def update_column(*, column_id: int, title: str, user: AbstractBaseUser) -> Colu
 
 
 def delete_column(*, column_id: int, user: AbstractBaseUser) -> None:
-    """Elimina una columna y notifica el cambio de estructura."""
+    """Deletes a column and notifies structural change."""
     column = get_object_or_404(Column.objects.select_related('board'), pk=column_id)
     board = column.board
     _validate_permission(board, user, min_role='editor')
@@ -114,28 +103,25 @@ def delete_column(*, column_id: int, user: AbstractBaseUser) -> None:
     notify_board_change(board_id=board_id)
 
 
-
-# --- Servicios de Tarjetas ---
-
 def create_card(
-    *, 
-    column_id: int, 
-    title: str, 
-    description: str = "", 
-    priority: str = Card.Priority.MEDIUM, 
+    *,
+    column_id: int,
+    title: str,
+    description: str = "",
+    priority: str = Card.Priority.MEDIUM,
     user: AbstractBaseUser
 ) -> Card:
     column = get_object_or_404(Column.objects.select_related("board"), pk=column_id)
     board = column.board
     _validate_permission(board, user, min_role='editor')
-    
+
     with transaction.atomic():
         last_order = Card.objects.filter(column=column).aggregate(Max("order"))["order__max"]
         card = Card.objects.create(
-            column=column, 
-            title=title, 
-            description=description, 
-            priority=priority, 
+            column=column,
+            title=title,
+            description=description,
+            priority=priority,
             order=(last_order or 0.0) + 1.0
         )
         _touch_board(board)
@@ -149,13 +135,17 @@ def update_card(*, card_id: int, user: AbstractBaseUser, **data: Any) -> Card:
     board = card.column.board
     _validate_permission(board, user, min_role='editor')
 
+    updatable_fields = ['title', 'description', 'priority', 'is_completed']
+    changed_fields = []
+
     with transaction.atomic():
-        fields = ['title', 'description', 'priority', 'is_completed']
-        for field in fields:
+        for field in updatable_fields:
             if field in data:
                 setattr(card, field, data[field])
-        
-        card.save()
+                changed_fields.append(field)
+
+        if changed_fields:
+            card.save(update_fields=changed_fields + ['updated_at'])
         _touch_board(board)
 
     notify_board_change(board_id=board.id)
@@ -185,10 +175,9 @@ def move_card(*, card_id: int, new_column_id: int, new_order: float, user: Abstr
     with transaction.atomic():
         card.column_id = new_column_id
         card.order = new_order
-        card.save()
+        card.save(update_fields=['column_id', 'order', 'updated_at'])
         _touch_board(board)
 
-    # Notificamos el movimiento específico para que el Drag & Drop sea fluido
     notify_card_movement(
         board_id=board.id,
         card_id=card.id,
@@ -196,8 +185,6 @@ def move_card(*, card_id: int, new_column_id: int, new_order: float, user: Abstr
         to_col=new_column_id,
         order=new_order
     )
-    
-    # También notificamos un cambio general para asegurar que las métricas (Board Cards) se refresquen
     notify_board_change(board_id=board.id)
-    
+
     return cast(Card, card)

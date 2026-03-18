@@ -4,6 +4,7 @@ from .services import create_message
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
+    """WebSocket consumer for real-time board chat."""
 
     async def connect(self):
         if self.scope["user"].is_anonymous:
@@ -20,7 +21,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
         await self.accept()
 
-    async def disconnect(self):
+    async def disconnect(self, close_code):
         await self.channel_layer.group_discard(
             self.group_name,
             self.channel_name

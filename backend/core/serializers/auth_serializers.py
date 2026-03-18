@@ -9,8 +9,9 @@ from core.services.auth_service import register_user
 UserModel = get_user_model()
 
 
-
 class UserRegistrationSerializer(serializers.ModelSerializer):
+    """Handles user registration with auto-login (returns JWT tokens)."""
+
     password2 = serializers.CharField(write_only=True)
     access = serializers.SerializerMethodField()
     refresh = serializers.SerializerMethodField()
@@ -24,7 +25,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "email": {"required": True}
         }
 
-    # Getters para la respuesta automática (Auto-login)
     def get_access(self, obj) -> str:
         return str(RefreshToken.for_user(obj).access_token)
 
@@ -38,20 +38,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "email": obj.email,
         }
 
-    # --- VALIDACIONES DE CAMPO ESPECÍFICAS ---
-
     def validate_username(self, value: str) -> str:
-        # No permitir nombres solo numéricos
         if value.isdigit():
             raise serializers.ValidationError("El nombre de usuario no puede ser puramente numérico.")
-        
-        # Longitud mínima para el nombre de usuario
+
         if len(value) < 4:
             raise serializers.ValidationError("El nombre de usuario debe tener al menos 4 caracteres.")
 
         if UserModel.objects.filter(username=value).exists():
             raise serializers.ValidationError("Este nombre de usuario ya está registrado.")
-        
+
         return value
 
     def validate_email(self, value: str) -> str:
@@ -59,26 +55,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Este correo electrónico ya está en uso.")
         return value
 
-    # --- VALIDACIÓN CRUZADA DE SEGURIDAD ---
-
     def validate(self, data: dict) -> dict:
-        # 1. Coincidencia de contraseñas
         if data.get("password") != data.get("password2"):
             raise serializers.ValidationError({"password": "Las contraseñas no coinciden."})
 
-        # 2. Validación de Contraseña Robusta (Integra settings.AUTH_PASSWORD_VALIDATORS)
         password = data.get("password")
         user_temp = UserModel(username=data.get('username'), email=data.get('email'))
 
         errors = []
-        
-        # Validar contra los validadores configurados en settings.py
+
         try:
             password_validation.validate_password(password, user=user_temp)
         except DjangoValidationError as e:
             errors.extend(e.messages)
 
-        # Validación extra de signos y mayúsculas (Si no quieres tocar settings.py todavía)
         if not re.search(r'[A-Z]', password):
             errors.append("La contraseña debe contener al menos una letra mayúscula.")
         if not re.search(r'[@$!%*?&]', password):
@@ -95,14 +85,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validated_data.pop("password2", None)
         return register_user(**validated_data)
 
+
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    Login robusto que inyecta los datos del usuario.
-    """
+    """Custom login serializer that includes user data in the response."""
+
     def validate(self, attrs: dict):
         data = super().validate(attrs)
-        user = self.user 
-        
+        user = self.user
+
         data['user'] = {
             'id': user.id,
             'username': user.username,

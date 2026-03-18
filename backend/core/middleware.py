@@ -8,41 +8,37 @@ from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
-# Configuración del logger profesional
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
+
 @database_sync_to_async
 def get_user_from_token(token_key: str):
-    """
-    Lógica de extracción de usuario aislada y segura.
-    """
+    """Extracts and returns the user associated with a JWT access token."""
     try:
         token = AccessToken(token_key)
         user_id: Optional[int] = token.get("user_id")
-        
+
         if user_id:
             return User.objects.get(id=user_id)
         return AnonymousUser()
-        
+
     except (InvalidToken, TokenError, User.DoesNotExist):
         return AnonymousUser()
 
+
 class JWTAuthMiddleware:
-    """
-    Middleware para autenticación JWT en WebSockets (Channels).
-    """
+    """JWT authentication middleware for WebSocket connections (Channels)."""
+
     def __init__(self, inner):
         self.inner = inner
 
     async def __call__(self, scope: Dict[str, Any], receive, send):
-        # 1. Extracción segura de parámetros de consulta
         query_string: str = scope.get("query_string", b"").decode()
         query_params: Dict[str, list[str]] = parse_qs(query_string)
-        
+
         token: Optional[str] = query_params.get("token", [None])[0]
 
-        # 2. Asignación de usuario al scope del protocolo
         if token:
             scope["user"] = await get_user_from_token(token)
         else:
@@ -50,6 +46,7 @@ class JWTAuthMiddleware:
 
         return await self.inner(scope, receive, send)
 
+
 def JWTAuthMiddlewareStack(inner):
-    """Encapsulador para simplificar la configuración en routing.py"""
+    """Convenience wrapper for routing configuration."""
     return JWTAuthMiddleware(inner)

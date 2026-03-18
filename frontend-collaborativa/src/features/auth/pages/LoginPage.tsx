@@ -22,8 +22,6 @@ export const LoginPage: React.FC = () => {
       { username, password },
       {
         onSuccess: () => {
-          // La navegación solo ocurre AQUÍ tras la acción explícita.
-          // El PublicRoute se encargará de las visitas directas a /login.
           navigate("/boards", { replace: true });
         },
         onError: (err: unknown) => {

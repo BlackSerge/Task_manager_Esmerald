@@ -1,12 +1,9 @@
 from django.db import models
 from django.conf import settings
-from django.db.models import Count, Q
+
 
 class Board(models.Model):
-    """
-    Representa el contenedor principal de portafolios/proyectos.
-    Gestiona lógica de agregación para el frontend.
-    """
+    """Main container for boards."""
     title = models.CharField(max_length=255)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -29,14 +26,9 @@ class Board(models.Model):
     def __str__(self) -> str:
         return self.title
 
-    # --- Lógica de Negocio Computada (Clean Code) ---
-
-   
     @property
     def completed_cards_count(self) -> int:
-        """
-        Calcula las tarjetas en la última columna (asumida como 'Done').
-        """
+        """Cards in the last column (assumed as 'Done')."""
         last_column = self.columns.only('id').last()
         if not last_column:
             return 0
@@ -44,18 +36,19 @@ class Board(models.Model):
 
     @property
     def last_column(self):
-        """Retorna la columna que representa el estado final."""
+        """Returns the column representing the final state."""
         return self.columns.only('id').last()
 
+
 class BoardMember(models.Model):
-    """Gestión de permisos (RBAC)."""
+    """Through model for board membership with RBAC roles."""
+
     class Role(models.TextChoices):
         ADMIN = 'admin', 'Administrador'
         EDITOR = 'editor', 'Editor'
         VIEWER = 'viewer', 'Observador'
 
     board = models.ForeignKey(Board, on_delete=models.CASCADE)
-    related_name='memberships'
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     role = models.CharField(
         max_length=10,
@@ -74,10 +67,11 @@ class BoardMember(models.Model):
 
 
 class Column(models.Model):
-    """Estados dentro de un tablero."""
+    """Represents a status column within a board."""
+
     board = models.ForeignKey(
-        Board, 
-        on_delete=models.CASCADE, 
+        Board,
+        on_delete=models.CASCADE,
         related_name="columns"
     )
     title = models.CharField(max_length=255)
@@ -91,15 +85,16 @@ class Column(models.Model):
 
 
 class Card(models.Model):
-    """La unidad mínima de trabajo."""
+    """The minimal unit of work within a column."""
+
     class Priority(models.TextChoices):
         LOW = 'low', 'Baja'
         MEDIUM = 'medium', 'Media'
         HIGH = 'high', 'Alta'
 
     column = models.ForeignKey(
-        Column, 
-        on_delete=models.CASCADE, 
+        Column,
+        on_delete=models.CASCADE,
         related_name="cards"
     )
     title = models.CharField(max_length=255)

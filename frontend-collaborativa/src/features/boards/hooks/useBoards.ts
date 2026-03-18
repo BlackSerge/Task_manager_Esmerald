@@ -1,5 +1,3 @@
-// src/features/boards/hooks/useBoards.ts
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { boardService } from "../services/board.service";
 import { useBoardsStore } from "../store/board.store";
@@ -9,7 +7,6 @@ export const boardKeys = {
   all: ['boards'] as const,
   lists: () => [...boardKeys.all, 'list'] as const,
   details: () => [...boardKeys.all, 'detail'] as const,
-  // 💡 Forzamos que el ID siempre sea string para evitar fallos de coincidencia de cache
   detail: (id: string | number) => [...boardKeys.details(), String(id)] as const,
 };
 

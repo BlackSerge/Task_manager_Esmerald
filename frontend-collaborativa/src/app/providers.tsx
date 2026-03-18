@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/api/queryClient";
 import "@/features/boards/services/socket/socket.handler";
 
-// 2. Definimos la interfaz que faltaba
+
 interface ProvidersProps {
   children: React.ReactNode;
 }

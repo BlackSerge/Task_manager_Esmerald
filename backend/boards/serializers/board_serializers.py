@@ -1,4 +1,3 @@
-# apps/boards/api/serializers.py
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from ..models import Board, Column, Card, BoardMember
@@ -11,12 +10,13 @@ class UserMinimalSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id", "username", "email")
 
+
 class BoardMemberSerializer(serializers.ModelSerializer):
     user = UserMinimalSerializer(read_only=True)
+
     class Meta:
         model = BoardMember
         fields = ("user", "role", "joined_at")
-
 
 
 class CardSerializer(serializers.ModelSerializer):
@@ -24,30 +24,31 @@ class CardSerializer(serializers.ModelSerializer):
         model = Card
         fields = ("id", "title", "description", "priority", "order", "column")
 
+
 class ColumnSerializer(serializers.ModelSerializer):
     cards = CardSerializer(many=True, read_only=True)
     board = serializers.PrimaryKeyRelatedField(queryset=Board.objects.all(), required=False)
+
     class Meta:
         model = Column
         fields = ("id", "title", "order", "cards", "board")
 
 
 class BoardBusinessLogicMixin:
-    """Lógica compartida para permisos y estadísticas de tableros."""
-    
+    """Shared logic for board permissions and progress statistics."""
+
     def get_current_user_role(self, obj: Board) -> str:
         request = self.context.get('request')
         user = getattr(request, 'user', None) if request else self.context.get('user')
 
         if not user or user.is_anonymous:
             return "viewer"
-        
+
         if obj.owner_id == user.id:
             return "admin"
-       
+
         memberships = getattr(obj, 'boardmember_set', None)
         if memberships:
-            # Optimizamos para no hacer query extra si ya está prefecheado
             for m in (memberships.all() if hasattr(memberships, 'all') else memberships):
                 if m.user_id == user.id:
                     return str(m.role)
@@ -55,28 +56,34 @@ class BoardBusinessLogicMixin:
             membership = BoardMember.objects.filter(board=obj, user_id=user.id).first()
             if membership:
                 return str(membership.role)
-            
+
         return "viewer"
 
-    def calculate_progress(self, obj: Board) -> dict:
+    def _get_progress_data(self, obj: Board) -> dict:
+        """Returns cached progress data to avoid redundant computation per serializer instance."""
+        cache_attr = '_progress_cache'
+        cached = getattr(obj, cache_attr, None)
+        if cached is not None:
+            return cached
+
         total = getattr(obj, 'total_cards_count_annotated', None)
         if total is None:
-           
             total = Card.objects.filter(column__board=obj).count()
-        
+
         completed = getattr(obj, 'completed_cards_count_annotated', None)
         if completed is None:
-          
             last_col = obj.columns.only('id').last()
             completed = last_col.cards.count() if last_col else 0
 
         percentage = int((completed / total) * 100) if total > 0 else 0
-        
-        return {
+
+        result = {
             "total_cards": total,
             "completed_cards": completed,
             "progress_percentage": percentage
         }
+        setattr(obj, cache_attr, result)
+        return result
 
 
 class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
@@ -86,7 +93,6 @@ class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
     progress_percentage = serializers.SerializerMethodField()
     total_cards = serializers.SerializerMethodField()
     completed_cards = serializers.SerializerMethodField()
-   
 
     class Meta:
         model = Board
@@ -99,18 +105,14 @@ class BoardListSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
     def get_current_user_role(self, obj: Board) -> str:
         return super().get_current_user_role(obj)
 
-    def get_total_cards(self, obj):
-        return self.calculate_progress(obj)["total_cards"]
+    def get_total_cards(self, obj: Board) -> int:
+        return self._get_progress_data(obj)["total_cards"]
 
-    def get_completed_cards(self, obj):
-        return self.calculate_progress(obj)["completed_cards"]
-    
-    def get_progress_percentage(self, obj) -> int:
-        total = getattr(obj, 'total_cards_count_annotated', 0) or 0
-        completed = getattr(obj, 'completed_cards_count_annotated', 0) or 0
-        if total <= 0: return 0
-        return int((completed / total) * 100)
-    
+    def get_completed_cards(self, obj: Board) -> int:
+        return self._get_progress_data(obj)["completed_cards"]
+
+    def get_progress_percentage(self, obj: Board) -> int:
+        return self._get_progress_data(obj)["progress_percentage"]
 
 
 class BoardDetailSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin):
@@ -125,19 +127,19 @@ class BoardDetailSerializer(serializers.ModelSerializer, BoardBusinessLogicMixin
     class Meta:
         model = Board
         fields = (
-            "id", "title", "owner", "columns", "members", 
+            "id", "title", "owner", "columns", "members",
             "current_user_role", "progress_percentage", "total_cards", "completed_cards",
             "last_activity", "created_at", "updated_at"
         )
-    
+
     def get_current_user_role(self, obj: Board) -> str:
         return super().get_current_user_role(obj)
 
-    def get_total_cards(self, obj):
-        return self.calculate_progress(obj)["total_cards"]
+    def get_total_cards(self, obj: Board) -> int:
+        return self._get_progress_data(obj)["total_cards"]
 
-    def get_completed_cards(self, obj):
-        return self.calculate_progress(obj)["completed_cards"]
+    def get_completed_cards(self, obj: Board) -> int:
+        return self._get_progress_data(obj)["completed_cards"]
 
-    def get_progress_percentage(self, obj):
-        return self.calculate_progress(obj)["progress_percentage"]
+    def get_progress_percentage(self, obj: Board) -> int:
+        return self._get_progress_data(obj)["progress_percentage"]

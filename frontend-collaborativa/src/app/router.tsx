@@ -8,10 +8,7 @@ import { PublicRoute } from "@/shared/guards/PublicRoute";
 import { MainLayout } from "@/shared/layout/MainLayout";
 import { ProtectedRoute } from "@/shared/guards/ProtectedRoute";
 
-/**
- * appRouter: Definición centralizada de rutas.
- * Se utiliza una estructura jerárquica para facilitar la aplicación de Guards.
- */
+
 export const appRouter = createBrowserRouter([
   // --- RUTAS DE AUTENTICACIÓN (Públicas) ---
   { 
@@ -35,7 +32,7 @@ export const appRouter = createBrowserRouter([
       {
         element: <MainLayout />,
         children: [
-          // Usamos paths absolutos para evitar ambigüedad durante la navegación reactiva
+      
           { path: "/boards", element: <BoardsPage /> },
           { path: "/boards/:boardId", element: <BoardDetailPage /> },
         ],
