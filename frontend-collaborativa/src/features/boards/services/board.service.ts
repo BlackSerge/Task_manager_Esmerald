@@ -1,14 +1,9 @@
 import { http } from "@/api/http.service";
 import { API_ENDPOINTS } from "@/core/constants/endpoints";
 import { 
-  Board, 
-  Column, 
-  Card, 
-  PriorityLevel, 
-  BoardMember, 
-  UserRole
-} from "../types/board.types";
-import { AuthUser } from "@/features/auth/types/auth.types";
+  Board, Column, Card, PriorityLevel, BoardMember, UserRole
+} from "../types";
+import { AuthUser } from "@/features/auth";
 
 // --- Interfaces de apoyo para mapeo ---
 interface BoardRaw extends Omit<Board, 'id' | 'owner' | 'members' | 'columns'> {
@@ -22,7 +17,7 @@ interface BoardRaw extends Omit<Board, 'id' | 'owner' | 'members' | 'columns'> {
     role?: UserRole;
     joined_at?: string;
   }>;
-  columns?: Array<ColumnRaw>;
+  columns?: ColumnRaw[];
 }
 
 interface ColumnRaw extends Omit<Column, 'id' | 'cards'> {

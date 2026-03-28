@@ -1,8 +1,6 @@
-// src/shared/components/dnd/DroppableWrapper.tsx
 import { Droppable, DroppableProps } from "@hello-pangea/dnd";
 import React, { useEffect, useState } from "react";
 
-// Omitimos droppableId de las props originales para manejarlo nosotros con el nombre "id"
 interface Props extends Omit<DroppableProps, "children" | "droppableId"> {
   id: string | number;
   children: React.ReactNode;
@@ -15,7 +13,7 @@ export const DroppableWrapper: React.FC<Props> = ({
   className, 
   ...props 
 }) => {
-  // Fix para evitar errores de hidratación en React 18/Next
+
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
@@ -37,12 +35,10 @@ export const DroppableWrapper: React.FC<Props> = ({
         >
           {children}
           
-          {/* 💡 Este es el "Hueco" (Placeholder) visible y elegante */}
+
           {provided.placeholder && (
             <div className="relative pointer-events-none">
-              {/* Renderizamos el placeholder original para que el motor de DnD calcule el espacio */}
               {provided.placeholder}
-              {/* Superponemos nuestro diseño Premium de hueco */}
               <div className="absolute inset-0 mt-4 rounded-[2rem] border-2 border-dashed border-emerald-200/50 bg-emerald-50/30 animate-pulse" />
             </div>
           )}

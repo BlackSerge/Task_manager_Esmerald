@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, ArrowRightLeft, Layout, Hash, Info, Move } from "lucide-react";
-import { Board, Card } from "../../types/board.types";
+import { Board, Card } from "../../types";
 
 interface MoveCardModalProps {
   isOpen: boolean;
@@ -27,7 +27,6 @@ export const MoveCardModal: React.FC<MoveCardModalProps> = ({
 
   const positions = useMemo(() => {
     const count = selectedColumn?.cards?.length || 0;
-    // Si es la misma columna, el máximo es el conteo actual. Si es otra, es conteo + 1
     const max = selectedColId === card.column ? count : count + 1;
     return Array.from({ length: max }, (_, i) => i + 1);
   }, [selectedColumn, selectedColId, card.column]);

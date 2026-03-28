@@ -40,12 +40,12 @@ class SocketService {
 
       this.socket.onerror = () => {
         if (this.socket?.readyState !== WebSocket.CLOSED) {
-          console.error("❌ [SocketService]: Connection error");
+          console.error("[SocketService]: Connection error");
         }
       };
       
     } catch (err) {
-      console.error("❌ [SocketService]: Critical instantiation failure", err);
+      console.error("[SocketService]: Critical instantiation failure", err);
       this.scheduleReconnect(url);
     }
   }
@@ -61,7 +61,7 @@ class SocketService {
       const parsed = JSON.parse(event.data as string) as RawSocketData;
       this.listeners.forEach((listener) => listener(parsed));
     } catch (error) {
-      console.error("❌ [SocketService]: JSON parse error", error);
+      console.error("[SocketService]: JSON parse error", error);
     }
   }
 

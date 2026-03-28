@@ -1,7 +1,6 @@
-// src/features/boards/services/socket/board.socket.gateway.ts
 import { socketService } from "./board.socket.service";
 import { useBoardsStore } from "../../store/board.store";
-import { BoardSocketType, SocketEvent } from "../../types/events.types";
+import { BoardSocketType, SocketEvent } from "../../types";
 import { storageService } from "@/core/services/storage/storage.service";
 
 export const boardSocketGateway = {
@@ -12,7 +11,6 @@ export const boardSocketGateway = {
 
     socketService.connect(url);
 
-    // Suscribirse a los eventos y mapearlos al Store
     return socketService.subscribe((raw) => {
       const event = raw as unknown as SocketEvent;
       const store = useBoardsStore.getState();
@@ -33,7 +31,7 @@ export const boardSocketGateway = {
 
         case BoardSocketType.CARD_UPDATED:
           store.updateCard(
-            event.payload.columnId|| 0, // Ajustar según tu backend
+            event.payload.columnId|| 0, 
             event.payload.cardId,
             event.payload.card
           );

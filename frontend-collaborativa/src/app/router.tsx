@@ -10,7 +10,6 @@ import { ProtectedRoute } from "@/shared/guards/ProtectedRoute";
 
 
 export const appRouter = createBrowserRouter([
-  // --- RUTAS DE AUTENTICACIÓN (Públicas) ---
   { 
     element: <PublicRoute />,
     children: [
@@ -19,13 +18,11 @@ export const appRouter = createBrowserRouter([
     ]
   },
 
-  // --- RUTA LANDING ---
   { 
     path: "/", 
     element: <HomePage /> 
   },
 
-  // --- RUTAS DE APLICACIÓN (Protegidas) ---
   {
     element: <ProtectedRoute />,
     children: [
@@ -40,7 +37,6 @@ export const appRouter = createBrowserRouter([
     ],
   },
 
-  // --- UTILIDADES Y FALLBACK ---
   { path: "/dashboard", element: <Navigate to="/boards" replace /> },
   { 
     path: "*", 

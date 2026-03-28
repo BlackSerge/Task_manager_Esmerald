@@ -4,7 +4,7 @@ import { AxiosError } from "axios";
 import { Eye, EyeOff, AlertCircle, Loader2, Check, Circle, PartyPopper, UserPlus } from "lucide-react";
 import { useRegister } from "../hooks/useAuth";
 import { useAuthStore } from "@/features/auth/store/auth.store";
-import { ApiErrorResponse } from "../types/auth.types";
+import { ApiErrorResponse } from "../types";
 
 export const RegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({ 
@@ -49,11 +49,7 @@ export const RegisterPage: React.FC = () => {
 
     registerMutation.mutate(formData, {
       onSuccess: (data) => {
-        // 1. Activamos la pantalla de éxito
         setIsSuccess(true);
-        
-        // 2. Esperamos 2.5 segundos para que el usuario disfrute la bienvenida
-        // Solo después de este tiempo llamamos a setAuth, que provoca la redirección
         setTimeout(() => {
           setAuth(data.user, data.access ?? "");
         }, 2500); 
@@ -77,7 +73,6 @@ export const RegisterPage: React.FC = () => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // Si el registro fue exitoso, mostramos la vista de bienvenida fija durante el timeout
   if (isSuccess) {
     return <SuccessView username={formData.username} />;
   }

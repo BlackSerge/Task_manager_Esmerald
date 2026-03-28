@@ -1,10 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { Board, Column, Card, BoardMember } from "../types/board.types";
+import { Board, Column, Card, BoardMember } from "../types";
 
-/**
- * Interfaz interna para procesar la respuesta de la API de Django
- */
 interface RawBoardResponse extends Partial<Board> {
   total_cards_count_annotated?: number;
   completed_cards_count_annotated?: number;
@@ -32,7 +29,7 @@ const calculateBoardMetrics = (columns: Column[]) => {
 
 export interface BoardsStore {
   boards: Board[];
-  recentIds: string[]; // Nuevo: Historial de IDs visitados
+  recentIds: string[]; 
   isLoading: boolean;
   hasHydrated: boolean;
   error: string | null;
@@ -48,7 +45,7 @@ export interface BoardsStore {
   moveCard: (fromColumnId: number, cardId: number, toColumnId: number, newIndex: number) => void;
   addMemberToBoard: (boardId: number, member: BoardMember) => void;
   syncBoardMetrics: (boardId: number) => void;
-  trackVisit: (boardId: string) => void; // Nuevo: Acción para registrar visitas
+  trackVisit: (boardId: string) => void;
 }
 
 export const useBoardsStore = create<BoardsStore>()(
@@ -60,7 +57,7 @@ export const useBoardsStore = create<BoardsStore>()(
       hasHydrated: false,
       error: null,
 
-      // Acción para mover la board al principio de "Recientes" localmente
+   
       trackVisit: (boardId) => set((state) => ({
         recentIds: [boardId, ...state.recentIds.filter(id => id !== boardId)].slice(0, 12)
       })),
@@ -180,7 +177,6 @@ export const useBoardsStore = create<BoardsStore>()(
     {
       name: "portfolio-management-storage",
       storage: createJSONStorage(() => localStorage),
-      // Ahora persistimos también recentIds para que no se pierda el orden al refrescar
       partialize: (state) => ({ 
         boards: state.boards, 
         recentIds: state.recentIds 

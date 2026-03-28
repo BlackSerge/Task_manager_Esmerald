@@ -1,14 +1,10 @@
-// src/features/boards/services/board-members.service.ts
 import { http } from "@/api/http.service";
 import { API_ENDPOINTS } from "@/core/constants/endpoints";
-import { InviteMemberDto, BoardMember } from "../types/board.types";
+import { InviteMemberDto, BoardMember } from "../types";
 
 export const boardMembersService = {
-  /**
-   * Invita a un usuario usando user_id.
-   */
+ 
   invite: async (boardId: number, data: InviteMemberDto): Promise<BoardMember> => {
-    // Al ser TypeScript estricto, 'data' ya debe cumplir con tener 'user_id'
     const response = await http.post<BoardMember>(
       API_ENDPOINTS.BOARDS.INVITE(boardId), 
       data

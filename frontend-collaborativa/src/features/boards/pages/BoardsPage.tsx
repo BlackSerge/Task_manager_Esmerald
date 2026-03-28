@@ -51,7 +51,7 @@ export const BoardsPage: React.FC = () => {
             </h1>
           </div>
 
-          {/* Buscador estilizado */}
+          {/* Buscador  */}
           <div className="relative w-full md:max-w-md group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400" size={18} />
             <input
@@ -72,10 +72,7 @@ export const BoardsPage: React.FC = () => {
       {showSkeleton ? (
         <BoardListSkeleton />
       ) : (
-        /* GRID PRO: 
-           - 'grid-cols-2': Forzamos 2 columnas desde el dispositivo más pequeño (UX Ágil).
-           - 'gap-3 md:gap-6': Espaciado reducido en móvil para ganar aire.
-        */
+        
         <motion.div 
           layout
           className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6"
@@ -107,7 +104,7 @@ export const BoardsPage: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Empty State adaptado */}
+      {/* Empty State  */}
       {!showSkeleton && filteredBoards.length === 0 && (
         <div className="col-span-full py-16 text-center">
           <FolderOpen className="w-12 h-12 text-emerald-100 mx-auto mb-4" />

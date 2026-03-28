@@ -1,6 +1,3 @@
-// src/shared/components/icons/index.tsx
-
-
 interface IconProps {
   className?: string;
 }

@@ -1,6 +1,5 @@
-// src/features/boards/hooks/useFilteredBoards.ts
 import { useState, useMemo } from 'react';
-import { Board } from '../types/board.types';
+import { Board } from '../types';
 
 export const useFilteredBoards = (boards: Board[] = []) => {
   const [searchTerm, setSearchTerm] = useState("");

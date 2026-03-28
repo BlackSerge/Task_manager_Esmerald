@@ -1,4 +1,3 @@
-// src/api/http.service.ts
 import axios, { InternalAxiosRequestConfig} from "axios";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
@@ -8,12 +7,11 @@ export const http = axios.create({
   withCredentials: true,
 });
 
-// Interceptor de Petición
 http.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = useAuthStore.getState().token;
     
-    // Verificamos que config.headers exista para satisfacer el modo estricto
+   
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -23,7 +21,6 @@ http.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor de Respuesta
 http.interceptors.response.use(
   (response) => response,
   (error) => {

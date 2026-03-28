@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Message, ChatEvent } from '../types/chat.types';
+import { Message, ChatEvent } from "../types";
 import { chatService } from '../services/chat.service';
 
 interface ChatState {
@@ -20,11 +20,9 @@ export const useChatStore = create<ChatState>((set) => ({
     set({ isLoading: true });
     
     try {
-      // 1. Historial (Usa MessageSerializer -> username y content)
       const history = await chatService.getMessages(boardId);
       set({ messages: history });
 
-      // 2. Tiempo Real (Usa Consumer -> user y content)
       chatService.connect(
         boardId,
         (event: ChatEvent) => {

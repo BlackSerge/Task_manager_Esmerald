@@ -1,7 +1,7 @@
 import { API_ENDPOINTS } from "@/core/constants/endpoints";
 import { http } from "@/api/http.service";
 import { storageService } from "@/core/services/storage/storage.service";
-import { Message, ChatEvent } from "../types/chat.types";
+import { Message, ChatEvent } from "../types";
 
 export class ChatService {
   private socket: WebSocket | null = null;

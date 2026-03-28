@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { LogOut, Layout, MessageSquare, UserPlus } from "lucide-react"; 
-
-import { useAuthStore } from "@/features/auth/store/auth.store";
+import { useAuthStore } from "@/features/auth";
 import { useNavBarStore } from "@/shared/components/stores/navbar.store";
-import { useBoardsStore } from "@/features/boards/store/board.store";
-import { ShareBoardModal } from "@/features/boards/components/BoardDetail/ShareBoardModal";
+import { useBoardsStore, ShareBoardModal } from "@/features/boards";
 import { MemberAvatars } from "@/shared/components/ui/MemberAvatars";
 
 export const Navbar: React.FC = () => {
@@ -15,14 +13,11 @@ export const Navbar: React.FC = () => {
   
   const location = useLocation();
   const { boardId } = useParams<{ boardId: string }>(); 
-  
-  // Sincronización con el store
   const board = useBoardsStore((state) => 
     state.boards.find(b => String(b.id) === String(boardId))
   );
   
   const isBoardDetail = location.pathname.includes("/boards/") && !!boardId;
-  // Extraemos miembros de forma segura
   const members = board?.members ?? [];
 
   return (
@@ -35,7 +30,7 @@ export const Navbar: React.FC = () => {
           <span className="text-2xl font-black text-emerald-950 tracking-tighter uppercase">Emerald</span>
         </Link>
 
-        {/* AVATARES DE MIEMBROS: Usando el componente unificado de shared */}
+        {/* AVATARES DE MIEMBROS*/}
         {isBoardDetail && members.length > 0 && (
           <div className="hidden xl:block border-l border-emerald-100 pl-8">
             <MemberAvatars 

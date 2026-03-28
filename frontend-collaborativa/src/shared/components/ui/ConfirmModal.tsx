@@ -1,6 +1,5 @@
-// src/shared/components/ui/ConfirmModal.tsx
 import React from "react";
-import { createPortal } from "react-dom"; // 💡 Importante
+import { createPortal } from "react-dom"; 
 import { AlertTriangle, X } from "lucide-react";
 
 interface ConfirmModalProps {
@@ -19,15 +18,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // Creamos el contenido del modal
   const modalContent = (
     <div 
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-emerald-950/60 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={onClose} // Cerrar al hacer clic en el backdrop
+      onClick={onClose} 
     >
       <div 
         className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl border border-emerald-100 animate-in zoom-in duration-300 relative"
-        onClick={(e) => e.stopPropagation()} // Evitar que el clic interno cierre el modal
+        onClick={(e) => e.stopPropagation()} 
       >
         <div className="flex justify-between items-start mb-6">
           <div className={`p-3 rounded-2xl ${variant === 'danger' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
@@ -71,6 +69,5 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     </div>
   );
 
-  // 💡 Renderizamos el modal en el body para que ignore el CSS de los padres
   return createPortal(modalContent, document.body);
 };

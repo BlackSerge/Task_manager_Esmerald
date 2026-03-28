@@ -1,10 +1,8 @@
-// src/shared/components/DateDisplay.tsx
 import React from "react";
 import { formatDate } from "@/shared/utils/date.utils";
 import { Calendar } from "lucide-react";
 
 interface DateDisplayProps {
-  // Mantenemos la flexibilidad de recibir ambos
   date?: string | Date; 
   showIcon?: boolean;
   className?: string;
@@ -17,8 +15,6 @@ export const DateDisplay: React.FC<DateDisplayProps> = ({
 }) => {
   if (!date) return null;
 
-  // 💡 Normalización: Si es un objeto Date, lo convertimos a ISO string 
-  // para que formatDate lo procese sin errores de tipo.
   const dateValue = date instanceof Date ? date.toISOString() : date;
   
   const formatted = formatDate(dateValue);

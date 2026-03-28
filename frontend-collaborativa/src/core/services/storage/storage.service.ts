@@ -1,4 +1,3 @@
-// src/core/services/storage/storage.service.ts
 import { STORAGE_KEYS } from "./storage.constans";
 export const storageService = {
   getToken: (): string | null => {
@@ -6,7 +5,6 @@ export const storageService = {
     if (!authData) return null;
 
     try {
-      // Zustand persist guarda los datos como: {"state": {"token": "...", ...}, "version": 0}
       const parsed = JSON.parse(authData);
       const token = parsed.state?.token;
       

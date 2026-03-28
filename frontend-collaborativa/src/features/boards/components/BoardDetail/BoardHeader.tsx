@@ -1,7 +1,6 @@
-// src/features/boards/components/BoardHeader.tsx
 import React, { useState } from "react";
 import { UserPlus, Lock, ShieldCheck } from "lucide-react";
-import { Board } from "../../types/board.types";
+import { Board } from "../../types";
 import { usePermissions } from "../../hooks/usePermissions";
 import { ShareBoardModal } from "./ShareBoardModal";
 
@@ -28,7 +27,6 @@ export const BoardHeader: React.FC<{ board: Board }> = ({ board }) => {
         </div>
 
         <div className="flex items-center gap-8">
-          {/* Avatar Group de Miembros */}
           <div className="flex flex-col items-end gap-2">
             <span className="text-[9px] font-black text-emerald-800/30 uppercase tracking-widest mr-2">
               Equipo del Proyecto ({board.members?.length || 0})
@@ -36,15 +34,13 @@ export const BoardHeader: React.FC<{ board: Board }> = ({ board }) => {
             <div className="flex -space-x-3 hover:space-x-1 transition-all duration-300">
               {board.members?.map((member) => (
                 <div 
-                  // ✅ Ajuste: Usamos member.user.id
                   key={member.user.id}
                   className="w-12 h-12 rounded-2xl border-4 border-white bg-white flex items-center justify-center shadow-lg group relative cursor-pointer"
                 >
                   <div className="w-full h-full rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-sm group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                    {/* ✅ Ajuste: Acceso seguro a member.user.username */}
-                    {member.user.username?.substring(0, 2).toUpperCase() ?? "??"}
+                     {member.user.username?.substring(0, 2).toUpperCase() ?? "??"}
                   </div>
-                  
+
                   {/* Tooltip con Rol */}
                   <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 scale-0 group-hover:scale-100 transition-all z-50 pointer-events-none">
                     <div className="bg-emerald-950 text-white text-[9px] py-2 px-3 rounded-xl font-black whitespace-nowrap shadow-2xl">
@@ -56,7 +52,6 @@ export const BoardHeader: React.FC<{ board: Board }> = ({ board }) => {
             </div>
           </div>
 
-          {/* Lógica de Compartir */}
           {canShare ? (
             <button 
               onClick={() => setIsShareModalOpen(true)}
@@ -74,7 +69,6 @@ export const BoardHeader: React.FC<{ board: Board }> = ({ board }) => {
         </div>
       </header>
 
-      {/* 🔐 Modal de Gestión de Equipo */}
       {isShareModalOpen && (
         <ShareBoardModal 
           board={board} 

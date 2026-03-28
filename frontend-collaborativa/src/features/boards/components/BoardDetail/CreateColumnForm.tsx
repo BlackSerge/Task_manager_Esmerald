@@ -8,7 +8,6 @@ export const CreateColumnForm: React.FC<{ boardId: string }> = ({ boardId }) => 
   const { mutate, isPending } = useCreateColumn();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Manejar cierre con Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setIsEditing(false);

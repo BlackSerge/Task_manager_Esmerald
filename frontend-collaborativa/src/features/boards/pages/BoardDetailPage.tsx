@@ -36,11 +36,6 @@ export const BoardDetailPage: React.FC = () => {
 
       <SyncStatusIndicator isSyncing={showSyncing} isError={isError} onRetry={refetch} />
 
-      {/* CONTENEDOR DE SCROLL MAESTRO:
-          - touch-pan-x: Habilita el gesto nativo de deslizamiento lateral.
-          - overflow-x-auto: Permite el scroll.
-          - custom-scrollbar: Para ocultar la barra en móviles pero mantener el gesto.
-      */}
       <div className="flex-1 relative">
         <div 
           className={`
@@ -56,7 +51,7 @@ export const BoardDetailPage: React.FC = () => {
                 animate={{
                   scale: isOverviewMode ? ZOOM_FACTOR : 1,
                   width: isOverviewMode ? `${100 / ZOOM_FACTOR}%` : "100%",
-                  paddingTop: isOverviewMode ? "0px" : "0px", // Pegado absoluto
+                  paddingTop: isOverviewMode ? "0px" : "0px", 
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 35 }}
                 style={{ originX: 0, originY: 0 }}
@@ -91,8 +86,7 @@ export const BoardDetailPage: React.FC = () => {
             </DragDropContext>
           </main>
         </div>
-
-        {/* MÁSCARA DE GRADIENTE (Solo visual, no bloquea el touch) */}
+        
         <AnimatePresence>
           {isOverviewMode && (
             <motion.div 

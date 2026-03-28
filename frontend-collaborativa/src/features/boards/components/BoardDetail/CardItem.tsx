@@ -4,13 +4,13 @@ import {
   ShieldCheck, ShieldAlert, User, AlignLeft, ChevronRight, ArrowRightLeft 
 } from "lucide-react";
 
-import { Card, BoardMember, PriorityLevel, CreateCardPayload, Board } from "../../types/board.types";
+import { Card, BoardMember, PriorityLevel, CreateCardPayload, Board } from "../../types";
 import { DraggableWrapper } from "@/shared/components/dnd/DraggableWrapper";
 import { PriorityBadge } from "../Board/PriorityBadge";
 import { DateDisplay } from "@/shared/components/ui/DateDisplay";
 import { DropdownMenu, DropdownOption } from "@/shared/components/ui/DropdownMenu";
 import { TaskModal } from "./CardModal";
-import { MoveCardModal } from "./MoveCardModal"; // Importamos el nuevo modal
+import { MoveCardModal } from "./MoveCardModal"; 
 import { useBoardOperations } from "../../hooks/useBoardOperations";
 
 interface CardItemProps {
@@ -135,7 +135,6 @@ export const CardItem: React.FC<CardItemProps> = ({
           </div>
         )}
       </DraggableWrapper>
-
    
       {isModalOpen && (
         <TaskModal 

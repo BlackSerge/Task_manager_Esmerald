@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { X, Search, UserPlus, Shield, CheckCircle2, ArrowRight, Loader2, Trash2, AlertCircle } from "lucide-react";
-import { Board, UserRole } from "../../types/board.types";
+import { Board, UserRole } from "../../types";
 import { useBoardTeam } from "../../hooks/useBoardTeam";
-import { AuthUser } from "@/features/auth/types/auth.types";
+import { AuthUser } from "@/features/auth";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 
 interface Props {
@@ -182,7 +182,7 @@ export const ShareBoardModal: React.FC<Props> = ({ board, onClose }) => {
               </div>
             )}
 
-            {/* LISTA DE EQUIPO - BOTÓN ROJO MEJORADO */}
+            {/* LISTA DE EQUIPO  */}
             {!showSuccess && (
               <div className="pt-6 border-t border-emerald-50">
                 <h3 className="text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-4">

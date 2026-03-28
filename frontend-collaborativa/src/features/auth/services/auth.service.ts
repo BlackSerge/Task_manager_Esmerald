@@ -5,7 +5,7 @@ import {
   LoginResponse, 
   RegisterPayload, 
   RegisterResponse 
-} from "../types/auth.types";
+} from "../types";
 
 export const authService = {
   login: async (data: LoginPayload): Promise<LoginResponse> => {

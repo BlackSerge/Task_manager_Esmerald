@@ -1,4 +1,3 @@
-// src/features/landing/pages/HomePage.tsx
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogOut, Layout, ArrowRight, Sparkles } from "lucide-react"; // Usamos Lucide
@@ -15,8 +14,6 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-600 via-teal-700 to-green-900 flex flex-col items-center justify-center text-white px-4 overflow-hidden relative">
-      
-      {/* Background Decor (Círculos difusos para profundidad) */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-400/10 rounded-full blur-[120px]" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-400/10 rounded-full blur-[120px]" />
 
@@ -63,7 +60,7 @@ export const HomePage: React.FC = () => {
       <main className="text-center max-w-4xl relative z-10">
         <div className="mb-8 inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 border border-emerald-400/30 rounded-full text-emerald-200 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">
           <Sparkles size={12} />
-          Organización de alto nivel
+          Esmerald Proyect
         </div>
         
         <h2 className="text-6xl md:text-8xl font-black mb-8 tracking-tighter leading-[0.9] animate-in fade-in slide-in-from-bottom-8 duration-1000">
@@ -95,7 +92,7 @@ export const HomePage: React.FC = () => {
 
       <footer className="absolute bottom-8 text-center">
         <p className="text-emerald-300/40 text-[10px] font-black tracking-[0.3em] uppercase">
-          © 2025 PortfolioManager • Emerald Service Layer Architecture
+          © 2025 PortfolioManager • Emerald 
         </p>
       </footer>
     </div>

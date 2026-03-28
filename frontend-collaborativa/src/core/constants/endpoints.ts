@@ -4,7 +4,7 @@ export const API_ENDPOINTS = {
     REGISTER: "api/auth/register/",
   },
   USERS: {
-    SEARCH: "api/users/search/", // Coincide con la nueva ruta
+    SEARCH: "api/users/search/",
   },
   BOARDS: {
     BASE: "api/boards/",

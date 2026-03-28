@@ -1,13 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { Layout, CheckSquare, Clock, ArrowRight, Edit2, Trash2 } from "lucide-react";
-import { Board } from "../../types/board.types";
+import { Board } from "../../types";
 import { formatDate } from "@/shared/utils/date.utils";
 import { DropdownMenu } from "@/shared/components/ui/DropdownMenu";
 import { EditableEntity } from "../EditableEntity"; 
 import { usePermissions } from "../../hooks/usePermissions";
 import { useBoardsStore } from "../../store/board.store";
-import { useTimeTick } from "@/shared/hooks/useTimeTick";
-
 import { ProgressBar } from "@/shared/components/ui/ProgressBar";
 import { StatItem } from "@/shared/components/ui/StatItem";
 import { MemberAvatars } from "@/shared/components/ui/MemberAvatars";
@@ -26,13 +24,11 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board: initialBoard, onCli
     state.boards.find((b) => String(b.id) === String(initialBoard.id))
   ) || initialBoard;
 
-  const tick = useTimeTick(1000);
   const { role, canEdit, canDelete, isAdmin } = usePermissions(board);
-  
   const timeAgo = useMemo(() => {
     const displayDate = board.last_activity ?? board.updated_at ?? board.created_at;
     return formatDate(displayDate);
-  }, [board.last_activity, board.updated_at, board.created_at, tick]);
+  }, [board.last_activity, board.updated_at, board.created_at]);
   
   const progress = useMemo(() => {
     const total = board.total_cards ?? 0;
@@ -70,7 +66,6 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board: initialBoard, onCli
           <Layout size={18} className="md:w-6 md:h-6" />
         </div>
         <div className="flex items-center gap-1 md:gap-2">
-          {/* Badge más pequeño en móvil */}
           <span className={`px-2 py-0.5 rounded-full text-[8px] md:text-[10px] font-black uppercase border shadow-sm ${
             isAdmin ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
           }`}>
@@ -88,12 +83,10 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board: initialBoard, onCli
           isEditing={isEditing}
           onSave={(newTitle) => { onEdit(board.id.toString(), newTitle); setIsEditing(false); }}
           onCancel={() => setIsEditing(false)}
-          // Reducción de tamaño de fuente en móvil (text-lg vs text-2xl)
           className="text-lg md:text-2xl font-black text-emerald-950 leading-tight truncate group-hover:text-emerald-600 transition-colors block w-full tracking-tight"
         />
       </main>
 
-      {/* Avatars opcionales en móvil para ahorrar espacio vertical */}
       <div className="hidden md:block mb-6">
         <MemberAvatars members={board.members} limit={4} showLabel={true} />
       </div>
@@ -119,11 +112,9 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board: initialBoard, onCli
       </div>
 
       <footer className="flex items-center justify-between pt-3 md:pt-4 border-t border-emerald-50 mt-auto">
-  {/* Contenedor del tiempo con ancho máximo controlado */}
   <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[8px] md:text-[10px] uppercase tracking-tighter min-w-0">
     <Clock size={10} className="shrink-0 md:w-3 md:h-3" />
     <span className="truncate">
-      {/* En móviles muy pequeños, podemos quitar la palabra "Actualizado" si el espacio es crítico */}
       <span className="hidden xs:inline">Actualizado </span>
       {timeAgo}
     </span>

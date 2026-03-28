@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, AlignLeft, Type, Edit3, Loader2, Save } from "lucide-react";
-import { Card, CreateCardPayload } from "../../types/board.types";
+import { Card, CreateCardPayload } from "../../types";
 import { PrioritySelector } from "./PrioritySelector";
 
 interface TaskModalProps {

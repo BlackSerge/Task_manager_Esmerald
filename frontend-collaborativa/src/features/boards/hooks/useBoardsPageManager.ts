@@ -7,8 +7,6 @@ export const useBoardsPageManager = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; title: string } | null>(null);
-
-  // Store & API
   const { isPending, isError, refetch } = useBoards();
   const { boards, hasHydrated, recentIds, trackVisit } = useBoardsStore();
   const deleteMutation = useDeleteBoard();
@@ -32,21 +30,18 @@ export const useBoardsPageManager = () => {
       const indexA = recentIds.indexOf(idA);
       const indexB = recentIds.indexOf(idB);
 
-      // Si ambos están en recientes, manda el que se visitó más tarde (índice menor)
       if (indexA !== -1 && indexB !== -1) return indexA - indexB;
       if (indexA !== -1) return -1;
       if (indexB !== -1) return 1;
 
-      // Si ninguno es reciente, orden por fecha real
       const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
       const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
       return timeB - timeA;
     });
   }, [boards, searchTerm, recentIds]);
 
-  // Handlers
   const handleBoardClick = (id: number | string) => {
-    trackVisit(String(id)); // Actualiza el orden local sin tocar la DB
+    trackVisit(String(id)); 
     navigate(`/boards/${id}`);
   };
 
@@ -71,11 +66,9 @@ export const useBoardsPageManager = () => {
     setSearchTerm,
     boardToDelete,
     setBoardToDelete,
-    // Estados de UI
     showSkeleton: (!hasHydrated || boards.length === 0) && isPending && !isError,
     showError: isError && boards.length === 0,
     isDeleting: deleteMutation.isPending,
-    // Acciones
     handleBoardClick,
     handleEditTitle,
     handleDeleteConfirm,

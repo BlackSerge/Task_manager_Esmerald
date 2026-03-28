@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { boardService } from "@/features/boards/services/board.service";
 import { useBoardsStore } from "../store/board.store";
-import { Board } from "../types/board.types";
+import { Board } from "../types";
 
 export const useBoards = () => {
   const setBoards = useBoardsStore((state) => state.setBoards);

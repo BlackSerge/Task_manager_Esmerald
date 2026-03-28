@@ -1,6 +1,4 @@
-
 import { Variants } from "framer-motion";
-
 
 export const containerVariants: Variants = {
   hidden: { 
@@ -15,7 +13,6 @@ export const containerVariants: Variants = {
     } 
   },
 };
-
 
 export const chatVariants: Variants = {
   closed: { 
@@ -65,7 +62,6 @@ export const columnVariants: Variants = {
     transition: { duration: 0.2 }
   }
 };
-
 
 export const syncVariants: Variants = {
   hidden: { opacity: 0, y: -20 },

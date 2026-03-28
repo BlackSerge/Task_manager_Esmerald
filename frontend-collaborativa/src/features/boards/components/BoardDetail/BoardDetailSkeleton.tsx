@@ -12,7 +12,6 @@ export const BoardDetailSkeleton = () => (
         </div>
       </div>
     ))}
-    {/* Botón de añadir (Dashed) */}
     <div className="w-80 shrink-0 h-16 border-2 border-dashed border-emerald-100 rounded-3xl animate-pulse" />
   </div>
 );

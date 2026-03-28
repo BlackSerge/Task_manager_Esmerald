@@ -3,16 +3,12 @@ import { boardService } from "../services/board.service";
 import { boardMembersService } from "../services/board-members.service";
 import { useBoardsStore } from "../store/board.store";
 import { boardKeys } from "./keys/board.keys";
-import { PriorityLevel, Card, InviteMemberDto } from "../types/board.types";
+import { PriorityLevel, Card, InviteMemberDto } from "../types";
 
 export const useBoardOperations = (boardId?: string) => {
   const queryClient = useQueryClient();
   const store = useBoardsStore();
 
-  /**
-   * Sincronización de Cache: Invalida el listado global (métricas de BoardCard)
-   * y el detalle específico para asegurar consistencia.
-   */
   const sync = () => {
     queryClient.invalidateQueries({ queryKey: boardKeys.all });
     if (boardId) {

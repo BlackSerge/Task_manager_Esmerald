@@ -2,11 +2,8 @@ import { DropResult } from "@hello-pangea/dnd";
 import { useBoardsStore } from "../store/board.store";
 import { useCardActions } from "./useCardActions";
 import { confettiService } from "@/shared/services/confetti.service";
-import { Board } from "../types/board.types";
+import { Board } from "../types";
 
-/**
- * Hook de orquestación para el Drag and Drop.
- */
 export const useBoardDragAndDrop = (boardId: string | undefined) => {
   
   const { moveCard } = useCardActions(boardId);
@@ -16,7 +13,6 @@ export const useBoardDragAndDrop = (boardId: string | undefined) => {
   const handleDragEnd = (result: DropResult): void => {
     const { destination, source, draggableId } = result;
 
-    // 1. Validaciones básicas
     if (!destination || !boardId) return;
     
     if (
@@ -24,8 +20,7 @@ export const useBoardDragAndDrop = (boardId: string | undefined) => {
       destination.index === source.index 
     ) return;
 
-    // 2. EJECUCIÓN DE LA ACCIÓN
-    // Los nombres de las propiedades coinciden con el objeto que espera moveCardMutation
+    
     moveCard({
       cardId: Number(draggableId),
       fromColumnId: Number(source.droppableId),
@@ -33,7 +28,6 @@ export const useBoardDragAndDrop = (boardId: string | undefined) => {
       order: destination.index
     });
 
-    // 3. Celebración
     checkCelebration(destination.droppableId);
   };
 

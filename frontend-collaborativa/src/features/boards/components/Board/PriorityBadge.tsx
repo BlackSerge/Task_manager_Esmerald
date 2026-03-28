@@ -1,6 +1,4 @@
-
 import React from "react";
-
 
 const priorityStyles: Record<string, string> = {
   low: "bg-emerald-100 text-emerald-700",
@@ -15,7 +13,6 @@ const priorityLabels: Record<string, string> = {
 };
 
 export const PriorityBadge: React.FC<{ priority: string }> = ({ priority }) => {
-  // Normalizamos a minúsculas por si el backend envía "Low" o "LOW"
   const key = priority?.toLowerCase() || "medium";
   
   return (

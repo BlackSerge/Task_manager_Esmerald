@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useChatStore } from "../store/chat.store";
-import { useAuthStore } from "@/features/auth/store/auth.store";
+import { useAuthStore } from "@/features/auth";
 import { Send, Hash, Loader2 } from "lucide-react";
 
 interface Props {
@@ -89,7 +89,7 @@ export const ChatPanel: React.FC<Props> = ({ boardId }) => {
                   </span>
                 </div>
 
-                {/* Burbuja Corregida */}
+                {/* Burbuja  */}
                 <div className={`
                   relative max-w-[85%] p-4 px-5 text-[14px] leading-relaxed shadow-sm transition-all
                   ${isMe 
@@ -97,12 +97,11 @@ export const ChatPanel: React.FC<Props> = ({ boardId }) => {
                     : 'bg-emerald-600 text-white rounded-2xl rounded-tl-none shadow-md shadow-emerald-200/50'
                   }
                 `}>
-                  {/* Aseguramos que el contenido se renderice */}
+                  
                   <span className="block break-words">
                     {msg.content}
                   </span>
                   
-                  {/* Decorador de Cola */}
                   <div className={`absolute top-0 w-3 h-3 ${
                     isMe 
                     ? '-right-[5px] bg-emerald-100 [clip-path:polygon(0_0,0_100%,100%_0)] border-r border-emerald-200' 
@@ -115,7 +114,6 @@ export const ChatPanel: React.FC<Props> = ({ boardId }) => {
         )}
       </div>
 
-      {/* Input */}
       <footer className="p-6 bg-white border-t border-emerald-100/50">
         <form onSubmit={handleSend} className="relative flex items-center bg-slate-100 rounded-2xl p-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-200 transition-all">
           <input

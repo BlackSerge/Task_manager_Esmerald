@@ -1,6 +1,5 @@
-// src/features/boards/hooks/useCardItems.ts
 import { useState } from "react";
-import { Card,PriorityLevel } from "../types/board.types";
+import { Card, PriorityLevel } from "../types";
 
 export const useCardItem = (card: Card, onUpdate?: (payload: Partial<Card>) => void) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);

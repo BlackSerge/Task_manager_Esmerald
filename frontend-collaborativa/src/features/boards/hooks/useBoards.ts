@@ -1,14 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { boardService } from "../services/board.service";
 import { useBoardsStore } from "../store/board.store";
-import { Board, Column, Card, PriorityLevel } from "../types/board.types";
+import { Board, Column, Card, PriorityLevel } from "../types";
 
-export const boardKeys = {
-  all: ['boards'] as const,
-  lists: () => [...boardKeys.all, 'list'] as const,
-  details: () => [...boardKeys.all, 'detail'] as const,
-  detail: (id: string | number) => [...boardKeys.details(), String(id)] as const,
-};
+import { boardKeys } from "./keys/board.keys";
+export { boardKeys };
 
 // --- HOOKS DE CONSULTA ---
 
@@ -82,8 +78,6 @@ export const useCreateCard = () => {
       boardService.createCard(columnId, title, description || "", priority),
     onSuccess: (newCard, variables) => {
       const cardToStore = { ...newCard, priority: newCard.priority || variables.priority };
-      
-      // 🎯 Sincronización crucial
       queryClient.invalidateQueries({ queryKey: boardKeys.all });
       queryClient.invalidateQueries({ queryKey: boardKeys.detail(variables.boardId) });
       addCard(variables.columnId, cardToStore);
@@ -110,11 +104,8 @@ export const useUpdateCard = (boardIdContext?: number) => {
     mutationFn: ({ cardId, payload }) => boardService.updateCard(cardId, payload),
     onSuccess: (updatedCard, variables) => {
       const bId = variables.boardId || boardIdContext;
-
-      // Actualizamos store local primero (Optimistic UI parcial)
-      updateCardStore(updatedCard.column, updatedCard.id, updatedCard);
       
-      // Invalidamos para que React Query traiga la verdad del servidor
+      updateCardStore(updatedCard.column, updatedCard.id, updatedCard);
       queryClient.invalidateQueries({ queryKey: boardKeys.all });
       if (bId) {
         queryClient.invalidateQueries({ queryKey: boardKeys.detail(bId) });
@@ -164,9 +155,7 @@ export const useMoveCard = (boardId: string) => {
     mutationFn: (params: { cardId: number; columnId: number; order: number; fromColumnId: number }) =>
       boardService.moveCard(params.cardId, params.columnId, params.order),
     onSuccess: (_, variables) => {
-      // 1. Actualizamos localmente para feedback instantáneo
       moveCardStore(variables.fromColumnId, variables.cardId, variables.columnId, variables.order);
-      // 2. Invalidamos AMBAS llaves para que BoardCard y BoardDetail se refresquen
       queryClient.invalidateQueries({ queryKey: boardKeys.all });
       queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
     },

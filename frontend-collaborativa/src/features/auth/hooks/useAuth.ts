@@ -6,7 +6,7 @@ import {
   LoginResponse, 
   RegisterPayload, 
   RegisterResponse 
-} from "../types/auth.types";
+} from "../types";
 
 export const useLogin = (): UseMutationResult<LoginResponse, Error, LoginPayload> => {
   const setAuth = useAuthStore((state) => state.setAuth);

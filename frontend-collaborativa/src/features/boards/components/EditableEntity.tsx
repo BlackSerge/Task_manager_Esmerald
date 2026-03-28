@@ -16,19 +16,15 @@ export const EditableEntity: React.FC<Props> = ({
   onCancel,
   className 
 }) => {
-  // Estado interno si no se pasa el externo, o sincronizado con el externo
   const [internalIsEditing, setInternalIsEditing] = useState(false);
   const [tempValue, setTempValue] = useState(initialValue);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
-
   const isEditing = externalIsEditing !== undefined ? externalIsEditing : internalIsEditing;
 
-  // Sincronizar valor si cambia externamente
   useEffect(() => {
     setTempValue(initialValue);
   }, [initialValue]);
 
-  // Auto-focus al entrar en modo edición
   useEffect(() => {
     if (isEditing) {
       textAreaRef.current?.focus();
@@ -92,7 +88,6 @@ export const EditableEntity: React.FC<Props> = ({
       onClick={() => setInternalIsEditing(true)}
     >
       <p className="break-words leading-tight">{initialValue}</p>
-      {/* Indicador sutil de edición al hacer hover */}
       <div className="absolute -right-1 -top-1 w-2 h-2 bg-emerald-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
   );

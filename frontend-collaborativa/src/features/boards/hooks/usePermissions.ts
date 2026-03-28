@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/features/auth/store/auth.store";
-import { Board, UserRole } from "../types/board.types";
+import { Board,UserRole } from "../types";
 
 interface BoardPermissions {
   role: UserRole;
@@ -15,7 +15,6 @@ export const usePermissions = (board: Board | undefined): BoardPermissions => {
   const isHydrated = useAuthStore((state) => state.isHydrated);
   const user = useAuthStore((state) => state.user);
 
-  // 1. Estado de carga o falta de datos: Acceso mínimo por seguridad
   if (!isHydrated || !board || !user) {
     return { 
       role: 'viewer', 
@@ -29,8 +28,6 @@ export const usePermissions = (board: Board | undefined): BoardPermissions => {
 
 
   const isOwner = Number(board.owner?.id) === Number(user.id);
-  
-  // Determinamos el rol: Prioridad al Admin por propiedad, luego al rol del backend
   const role: UserRole = isOwner ? 'admin' : (board.current_user_role || 'viewer');
 
   return {

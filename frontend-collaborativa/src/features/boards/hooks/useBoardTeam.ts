@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { boardService } from "../services/board.service";
 import { boardMembersService } from "../services/board-members.service";
-import { UserRole, InviteMemberDto } from "../types/board.types";
-import { AuthUser } from "@/features/auth/types/auth.types";
+import { UserRole, InviteMemberDto } from "../types";
+import { AuthUser } from "@/features/auth";
 import { boardKeys } from "./useBoards";
 
 interface InviteParams {

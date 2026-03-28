@@ -1,19 +1,13 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Plus, Loader2, Lock, Edit2, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-// Types & Config
-import { Column, Board, Card, CreateCardPayload } from "../../types/board.types";
+import { Column, Board, Card, CreateCardPayload } from "../../types";
 import { getColumnStatusConfig } from "@/shared/utils/column.utils";
-
-// Shared & Feature Components
 import { EditableEntity } from "../EditableEntity";
 import { TaskModal } from "./CardModal";
 import { DropdownMenu } from "@/shared/components/ui/DropdownMenu";
 import { DroppableWrapper } from "@/shared/components/dnd/DroppableWrapper";
 import { CardItem } from "./CardItem"; 
-
-// Hooks
 import { usePermissions } from "../../hooks/usePermissions";
 import { useBoardOperations } from "../../hooks/useBoardOperations";
 
@@ -60,15 +54,9 @@ export const ColumnList: React.FC<Props> = ({ column, board, index, totalColumns
   ], [canEdit, canDelete, handleRemoveColumn]);
 
   return (
-    <div className={`
-      /* ELASTICIDAD: h-fit permite que la columna crezca con las tarjetas */
-      w-full h-fit max-h-[88vh] 
-      rounded-[2.8rem] p-6 flex flex-col border 
+    <div className={`w-full h-fit max-h-[88vh] rounded-[2.8rem] p-6 flex flex-col border 
       transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]
-      ${config.bg} backdrop-blur-2xl shadow-2xl
-      /* Evitamos que la sombra del CardItem se corte */
-      overflow-visible 
-    `}>
+      ${config.bg} backdrop-blur-2xl shadow-2xloverflow-visible `}>
       <header className="flex justify-between items-start mb-5 px-2 shrink-0">
         <div className="flex-1 min-w-0">
           <span className={`text-[9px] font-black uppercase tracking-[0.2em] opacity-50 ${config.text}`}>

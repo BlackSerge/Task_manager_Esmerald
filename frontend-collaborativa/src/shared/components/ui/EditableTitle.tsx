@@ -1,4 +1,3 @@
-// src/shared/components/EditableTitle.tsx
 import React, { useState, useEffect } from "react";
 
 export interface EditableTitleProps {

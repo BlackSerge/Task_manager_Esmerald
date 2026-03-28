@@ -1,5 +1,5 @@
 import React from "react";
-import { PriorityLevel } from "../../types/board.types";
+import { PriorityLevel } from "../../types";
 import { ChevronRight } from "lucide-react";
 
 interface PrioritySelectorProps {

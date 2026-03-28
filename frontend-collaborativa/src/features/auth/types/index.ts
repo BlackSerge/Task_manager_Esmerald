@@ -1,3 +1,4 @@
+
 export interface AuthUser {
   id: number;
   username: string;
@@ -14,13 +15,12 @@ export interface AuthState {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
-  isHydrated: boolean; // <-- Añadir
+  isHydrated: boolean; 
   setAuth: (user: AuthUser, token: string) => void;
   logout: () => void;
-  _setHydrated: () => void; // <-- Añadir (privada para el store)
+  _setHydrated: () => void;
 }
 
-// DTOs (Data Transfer Objects) para peticiones
 export interface LoginPayload {
   username: string;
   password: string;
@@ -35,9 +35,9 @@ export interface RegisterPayload {
 
 export interface RegisterResponse {
   user: AuthUser;
-  access?: string;  // Opcional, si tu backend loguea al usuario al registrarse
+  access?: string;  
   refresh?: string;
-  message?: string; // Por si devuelves un mensaje de éxito
+  message?: string; 
 }
 
 export interface ApiErrorResponse {

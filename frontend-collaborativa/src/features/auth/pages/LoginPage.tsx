@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { AxiosError } from "axios";
 import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import { useLogin } from "../hooks/useAuth";
-import { ApiErrorResponse } from "../types/auth.types";
+import { ApiErrorResponse } from "../types";
 
 export const LoginPage: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -79,7 +79,7 @@ export const LoginPage: React.FC = () => {
                 <input
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
-                  placeholder="Tu contraseña secreta"
+                  placeholder="Ingrese su contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full p-4 bg-emerald-50/30 border border-emerald-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all placeholder:text-emerald-400/60 text-emerald-900 font-medium pr-12"

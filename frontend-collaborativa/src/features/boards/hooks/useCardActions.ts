@@ -2,15 +2,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { boardService } from "../services/board.service";
 import { useBoardsStore } from "../store/board.store";
 import { boardKeys } from "./useBoards";
-import { Card } from "../types/board.types";
+import { Card } from "../types";
 
 export const useCardActions = (boardId: string | undefined) => {
   const queryClient = useQueryClient();
   const store = useBoardsStore();
-
-  /**
-   * 1. CREAR CARD (INSTANTÁNEO)
-   */
   const createCardMutation = useMutation({
     mutationFn: (payload: { columnId: number; title: string }) =>
       boardService.createCard(payload.columnId, payload.title, "", "medium"),
@@ -29,7 +25,6 @@ export const useCardActions = (boardId: string | undefined) => {
         is_completed: false,
       };
 
-      // Update instantáneo en Zustand
       store.addCard(newCard.columnId, tempCard);
       return { tempCard };
     },
@@ -41,9 +36,6 @@ export const useCardActions = (boardId: string | undefined) => {
     }
   });
 
-  /**
-   * 2. ACTUALIZAR CARD (OPTIMISTA)
-   */
   const updateCardMutation = useMutation({
     mutationFn: ({ cardId, payload }: { cardId: number; columnId: number; payload: Partial<Card> }) =>
       boardService.updateCard(cardId, payload),
@@ -52,7 +44,6 @@ export const useCardActions = (boardId: string | undefined) => {
       if (!boardId) return;
       await queryClient.cancelQueries({ queryKey: boardKeys.detail(boardId) });
 
-      // Actualizar Zustand inmediatamente
       store.updateCard(vars.columnId, vars.cardId, vars.payload);
     },
     onError: () => {
@@ -63,9 +54,7 @@ export const useCardActions = (boardId: string | undefined) => {
     }
   });
 
-  /**
-   * 3. ELIMINAR CARD (INSTANTÁNEO)
-   */
+  
   const deleteCardMutation = useMutation({
     mutationFn: (vars: { cardId: number; columnId: number }) => 
       boardService.deleteCard(vars.cardId),
@@ -74,7 +63,6 @@ export const useCardActions = (boardId: string | undefined) => {
       if (!boardId) return;
       await queryClient.cancelQueries({ queryKey: boardKeys.detail(boardId) });
 
-      // Eliminar de Zustand inmediatamente
       store.removeCard(vars.columnId, vars.cardId);
     },
     onError: () => {
@@ -85,9 +73,6 @@ export const useCardActions = (boardId: string | undefined) => {
     }
   });
 
-  /**
-   * 4. MOVER CARD
-   */
   const moveCardMutation = useMutation({
     mutationFn: ({ cardId, columnId, order }: { cardId: number; columnId: number; fromColumnId: number; order: number }) =>
       boardService.moveCard(cardId, columnId, order),
@@ -95,8 +80,7 @@ export const useCardActions = (boardId: string | undefined) => {
     onMutate: async (vars) => {
       if (!boardId) return;
       await queryClient.cancelQueries({ queryKey: boardKeys.detail(boardId) });
-      
-      // Mover en Zustand inmediatamente
+    
       store.moveCard(vars.fromColumnId, vars.cardId, vars.columnId, vars.order);
     },
     onError: () => {
@@ -110,7 +94,7 @@ export const useCardActions = (boardId: string | undefined) => {
   return {
     createCard: createCardMutation.mutate,
     updateCard: updateCardMutation.mutate,
-    deleteCard: deleteCardMutation.mutate, // Agregado
+    deleteCard: deleteCardMutation.mutate, 
     moveCard: moveCardMutation.mutate,
     isPending: 
       createCardMutation.isPending || 

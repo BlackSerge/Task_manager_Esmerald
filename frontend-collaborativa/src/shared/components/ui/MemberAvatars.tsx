@@ -1,12 +1,12 @@
 import React from "react";
-import { BoardMember,UserRole } from "@/features/boards/types/board.types";
+import { BoardMember, UserRole } from "@/features/boards/types";
 
 interface MemberAvatarsProps {
   members?: BoardMember[];
   limit?: number;
-  showLabel?: boolean; // Para mostrar "Colaboradores" en la Card
-  showRoleBadge?: boolean; // Para mostrar el punto de color en el Detail
-  className?: string; // Por si necesitas margen extra en un sitio sí y en otro no
+  showLabel?: boolean; 
+  showRoleBadge?: boolean; 
+  className?: string; 
 }
 
 const ROLE_COLORS: Record<UserRole, string> = {
@@ -45,7 +45,6 @@ export const MemberAvatars: React.FC<MemberAvatarsProps> = ({
               className="relative group"
               title={`${username} (${role})`}
             >
-              {/* Solo se muestra si showRoleBadge es true (BoardDetail) */}
               {showRoleBadge && (
                 <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white z-10 
                   ${ROLE_COLORS[role as UserRole] ?? ROLE_COLORS.viewer}`} 
@@ -75,7 +74,6 @@ export const MemberAvatars: React.FC<MemberAvatarsProps> = ({
         )}
       </div>
 
-      {/* Solo se muestra si showLabel es true (BoardCard) */}
       {showLabel && (
         <span className="text-[10px] font-black text-emerald-800/30 uppercase tracking-widest">
           Colaboradores

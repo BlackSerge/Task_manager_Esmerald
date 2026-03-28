@@ -1,10 +1,9 @@
-// src/features/boards/components/BoardList.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import { useBoards } from "../../hooks/useBoards";
 import { CreateBoardForm } from "./CreateBoardForm";
 import { Layout, Calendar, Clock, ChevronRight, Loader2 } from "lucide-react";
-import { Board } from "../../types/board.types";
+import { Board } from "../../types";
 
 export const BoardList: React.FC = () => {
   const { data: boards, isLoading, isError } = useBoards();
