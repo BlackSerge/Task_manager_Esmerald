@@ -20,6 +20,8 @@ __pycache__/
 env/
 venv/
 .env
+.env.dev
+.env.
 db.sqlite3
 media/
 staticfiles/
